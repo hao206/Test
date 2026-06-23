@@ -31,11 +31,13 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     useProjectStore.getState().fetchProjects();
     useTaskStore.getState().fetchTasks(''); // fetches all tasks if supported, or at least initializes
-    fetchLeaderboard().then(data => setLeaderboard(data));
-  }, []);
+    if (fetchLeaderboard) {
+      fetchLeaderboard().then(data => setLeaderboard(data));
+    }
+  }, [fetchLeaderboard]);
 
   // Filter tasks assigned to current user
-  const userFilteredTasks = tasks.filter(task => {
+  const userFilteredTasks = (tasks || []).filter(task => {
     const isMe = user && task.assignedTo === user.fullName;
     if (!isMe) return false;
     if (widgetTaskFilter === 'High') return task.priority === 'High';
@@ -43,10 +45,10 @@ export const Dashboard: React.FC = () => {
   });
 
   // Calculate dynamic Sprint completion stats
-  const completedTasks = tasks.filter(t => t.status === 'Done').length;
+  const completedTasks = (tasks || []).filter(t => t.status === 'Done').length;
 
   // Empty State for users with NO active projects
-  if (projects.length === 0) {
+  if (!projects || projects.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] font-sans">
         <div className="bg-surface border border-border-dim rounded-[32px] p-10 max-w-xl w-full text-center space-y-6 relative overflow-hidden">
@@ -157,19 +159,19 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              {projects.filter(p => p.status === 'Active').map((p) => (
-                <div key={p.id} className="flex gap-3 items-center p-2 rounded-xl hover:bg-surface-hover transition cursor-pointer" onClick={() => navigate('/projects')}>
+              {(projects || []).filter(p => p?.status === 'Active').map((p) => (
+                <div key={p?.id} className="flex gap-3 items-center p-2 rounded-xl hover:bg-surface-hover transition cursor-pointer" onClick={() => navigate('/projects')}>
                   <div className="w-10 h-10 rounded-xl bg-background border border-border-dim shrink-0 flex items-center justify-center text-lg shadow-sm">
-                    {p.name.charAt(0)}
+                    {p?.name?.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-xs font-bold text-text-primary truncate">{p.name}</h4>
-                    <p className="text-[9px] text-text-muted truncate">{p.category} • {p.members.length} {lang === 'en' ? 'members' : 'thành viên'}</p>
+                    <h4 className="text-xs font-bold text-text-primary truncate">{p?.name}</h4>
+                    <p className="text-[9px] text-text-muted truncate">{p?.category} • {p?.members?.length || 0} {lang === 'en' ? 'members' : 'thành viên'}</p>
                   </div>
                 </div>
               ))}
               
-              {projects.filter(p => p.status === 'Active').length === 0 && (
+              {(projects || []).filter(p => p.status === 'Active').length === 0 && (
                  <div className="text-center text-xs text-text-muted py-6 font-mono">
                   {lang === 'en' ? 'No active projects.' : 'Không có dự án đang chạy.'}
                 </div>
@@ -220,7 +222,7 @@ export const Dashboard: React.FC = () => {
             </h3>
           </div>
           <div className="space-y-3">
-            {leaderboard.length > 0 ? leaderboard.map((l, idx) => (
+            {leaderboard && leaderboard.length > 0 ? leaderboard.map((l, idx) => (
               <div key={l.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-surface-hover transition group">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
                   idx === 0 ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' :
