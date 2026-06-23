@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { AdminUser, NotificationAudience, Role, SystemNotification } from '../types';
-import { INITIAL_NOTIFICATIONS } from '../data';
 import api from '../lib/api';
 
 const nowLabel = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -22,7 +21,7 @@ interface AdminState {
 
 export const useAdminStore = create<AdminState>()((set, get) => ({
   users: [],
-  notifications: INITIAL_NOTIFICATIONS,
+  notifications: [],
   loading: false,
 
   fetchUsers: async () => {
