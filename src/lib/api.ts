@@ -15,8 +15,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
 
   if (res.status === 401) {
+    if (!token) {
+      throw new Error('Authentication required for this action.');
+    }
     localStorage.removeItem('cf_token');
     localStorage.removeItem('cf_user');
+    localStorage.removeItem('cfg_auth_store');
     window.location.href = '/';
     throw new Error('Session expired. Please log in again.');
   }

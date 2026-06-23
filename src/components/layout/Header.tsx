@@ -18,7 +18,7 @@ export const Header: React.FC = () => {
   const { notifications, fetchNotifications, markAsRead, markAllAsRead, clearAll } = useNotificationStore();
   
   React.useEffect(() => {
-    if (user) {
+    if (user && user.role !== 'Guest') {
       fetchNotifications();
     }
   }, [user]);
