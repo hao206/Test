@@ -189,6 +189,46 @@ router.put('/notifications/read-all', requireAuth, async (req, res) => {
   }
 });
 
+/* ── PUT /api/users/notifications/:id/read ──────────────── */
+router.put('/notifications/:id/read', requireAuth, async (req, res) => {
+  try {
+    await pool.query(
+      'UPDATE notifications SET read=true WHERE id=$1 AND (user_id=$2 OR user_id IS NULL)',
+      [req.params.id, req.user.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Đánh dấu đã đọc thất bại.' });
+  }
+});
+
+/* ── POST /api/users/notifications ──────────────────────── */
+router.post('/notifications', requireAuth, async (req, res) => {
+  try {
+    const { title, message, type } = req.body;
+    const result = await pool.query(
+      'INSERT INTO notifications (user_id, title, message, type) VALUES ($1,$2,$3,$4) RETURNING *',
+      [req.user.id, title, message, type || 'info']
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Tạo thông báo thất bại.' });
+  }
+});
+
+/* ── DELETE /api/users/notifications/clear ──────────────── */
+router.delete('/notifications/clear', requireAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM notifications WHERE user_id=$1', [req.user.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Xóa thông báo thất bại.' });
+  }
+});
+
 /* ══════════════════ ADMIN ONLY ══════════════════════════════ */
 
 /* ── GET /api/users/admin/audit-logs ────────────────────── */

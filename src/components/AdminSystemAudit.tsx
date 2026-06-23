@@ -258,8 +258,9 @@ export const AdminSystemAuditModule: React.FC<AdminSystemAuditProps> = ({ t, acc
             type="button"
             onClick={() => setActiveTab(tab.id)}
             className={`flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-[10px] font-black uppercase transition ${
-              activeTab === tab.id ? 'border-white/10 bg-white/10 text-white' : 'border-white/5 bg-[#111111] text-slate-500 hover:text-white'
+              activeTab === tab.id ? 'border-transparent text-[#0A0A0A]' : 'border-white/5 bg-[#111111] text-slate-500 hover:text-white'
             }`}
+            style={activeTab === tab.id ? { backgroundColor: accentColor } : {}}
           >
             <tab.icon className="h-3.5 w-3.5" />
             {tab.label}

@@ -114,18 +114,26 @@ export const CommunityModule: React.FC<CommunityProps> = ({
 
     const imgs = selectedPresetImage ? [selectedPresetImage] : [];
     
-    addPost(
-      newPostContent,
-      imgs,
-      selectedTopic
-    );
+    try {
+      await addPost(
+        newPostContent,
+        imgs,
+        selectedTopic
+      );
 
-    addReputation(20);
-    addLog(`Published new social forum post about ${selectedTopic}`, 'Community Portal', user?.fullName || 'Academic Peer');
-    addToast(lang === 'en' ? 'Post published successfully +20 XP!' : 'Đã đăng bài viết thành công +20 XP!', 'success');
+      addReputation(20);
+      addLog(`Published new social forum post about ${selectedTopic}`, 'Community Portal', user?.fullName || 'Academic Peer');
+      addToast(lang === 'en' ? 'Post published successfully +20 XP!' : 'Đã đăng bài viết thành công +20 XP!', 'success');
 
-    setNewPostContent('');
-    setSelectedPresetImage(null);
+      setNewPostContent('');
+      setSelectedPresetImage(null);
+    } catch (err: any) {
+      if (err.message && (err.message.toLowerCase().includes('payload') || err.message.toLowerCase().includes('large'))) {
+        addToast(lang === 'en' ? 'Image is too large to upload.' : 'Ảnh tải lên quá lớn, vui lòng chọn ảnh khác.', 'error');
+      } else {
+        addToast(err.message || (lang === 'en' ? 'Failed to publish post' : 'Đăng bài viết thất bại'), 'error');
+      }
+    }
   };
 
   const handleLikeClick = async (postId: string) => {

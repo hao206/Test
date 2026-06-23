@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Menu, Bell } from 'lucide-react';
 import { useUIStore } from '../../store/useUIStore';
@@ -14,7 +15,13 @@ export const Header: React.FC = () => {
   const user = useAuthStore((s) => s.user);
 
   // Notifications Store
-  const { notifications, markAsRead, markAllAsRead, clearAll } = useNotificationStore();
+  const { notifications, fetchNotifications, markAsRead, markAllAsRead, clearAll } = useNotificationStore();
+  
+  React.useEffect(() => {
+    if (user) {
+      fetchNotifications();
+    }
+  }, [user]);
   const [showNotificationDrawer, setShowNotificationDrawer] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -58,7 +65,7 @@ export const Header: React.FC = () => {
             )}
           </button>
 
-          {showNotificationDrawer && (
+          {showNotificationDrawer && createPortal(
             <>
               {/* Backdrop */}
               <div 
@@ -66,7 +73,7 @@ export const Header: React.FC = () => {
                 onClick={() => setShowNotificationDrawer(false)}
               />
               {/* Side Panel Inbox */}
-              <div className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-surface border-l border-border-dim shadow-2xl z-[100] flex flex-col animate-slide-in-right">
+              <div className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-surface border-l border-border-dim shadow-2xl z-[100] flex flex-col animate-slide-in-right font-sans">
                 <div className="flex items-center justify-between p-6 border-b border-border-dim bg-background/50">
                   <div className="space-y-1">
                     <h3 className="text-lg font-black text-text-primary tracking-tight font-display">{lang === 'en' ? 'Inbox' : 'Hộp thư'}</h3>
@@ -125,7 +132,8 @@ export const Header: React.FC = () => {
                   </div>
                 )}
               </div>
-            </>
+            </>,
+            document.body
           )}
         </div>
 

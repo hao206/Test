@@ -27,8 +27,8 @@ interface DraggableCardProps {
   task: Task;
   accentColor: string;
   lang: string;
-  handlePrevStatus: (id: string, st: TaskStatus) => void;
   handleNextStatus: (id: string, st: TaskStatus) => void;
+  handleDeleteTask: (id: string) => void;
   colValue: TaskStatus;
 }
 
@@ -36,8 +36,8 @@ const DraggableTaskCard: React.FC<DraggableCardProps> = ({
   task,
   accentColor,
   lang,
-  handlePrevStatus,
   handleNextStatus,
+  handleDeleteTask,
   colValue
 }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -61,11 +61,21 @@ const DraggableTaskCard: React.FC<DraggableCardProps> = ({
     >
       <div className="flex justify-between items-start gap-2">
         <Badge variant="default" className="text-[8px] bg-background border-border-dim px-1.5 truncate max-w-[150px]">{task.projectName}</Badge>
-        <div className={`w-2 h-2 rounded-full shrink-0 mt-0.5 ${
-          task.priority === 'High' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' :
-          task.priority === 'Medium' ? 'bg-amber-400' :
-          'bg-blue-400'
-        }`} title={task.priority || 'Medium'} />
+        <div className="flex items-center gap-1.5">
+          <button 
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}
+            className="text-text-muted hover:text-red-500 transition cursor-pointer"
+            title={lang === 'en' ? 'Delete Task' : 'Xóa công việc'}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+          </button>
+          <div className={`w-2 h-2 rounded-full shrink-0 mt-0.5 ${
+            task.priority === 'High' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' :
+            task.priority === 'Medium' ? 'bg-amber-400' :
+            'bg-blue-400'
+          }`} title={task.priority || 'Medium'} />
+        </div>
       </div>
       
       <h4 className="text-xs font-bold text-text-primary leading-tight group-hover:text-accent-primary transition-colors line-clamp-2">
@@ -200,6 +210,7 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
 
   const addTask = useTaskStore((state) => state.addTask);
   const updateTaskStatus = useTaskStore((state) => state.updateTaskStatus);
+  const deleteTask = useTaskStore((state) => state.deleteTask);
   const addReputation = useAuthStore((state) => state.addReputation);
 
   const activeUserRole = currentUserRole || user?.role || 'Student';
@@ -257,6 +268,21 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
       updateTaskStatus(taskId, prevStatus).catch(() => {});
       addLog(`Moved task status back from '${currentStatus}' to '${prevStatus}'`, 'TeamFlow Pro', user?.fullName || 'Academic Peer');
       addToast(lang === 'en' ? `Task moved back to ${prevStatus}` : `Trở lại trạng thái ${prevStatus}`, 'info');
+    }
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    if (activeUserRole === 'Guest') {
+      setShowGuestBlockModal(true);
+      return;
+    }
+    if (window.confirm(lang === 'en' ? 'Delete this task permanently?' : 'Xóa công việc này vĩnh viễn?')) {
+      deleteTask(taskId).then(() => {
+        addToast(lang === 'en' ? 'Task deleted permanently' : 'Đã xóa công việc vĩnh viễn', 'success');
+        addLog(`Deleted task ${taskId}`, 'TeamFlow Pro', user?.fullName || 'Academic Peer');
+      }).catch((err: any) => {
+        addToast(err.message || 'Failed to delete task', 'error');
+      });
     }
   };
 
@@ -412,6 +438,7 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
                       lang={lang}
                       handlePrevStatus={handlePrevStatus}
                       handleNextStatus={handleNextStatus}
+                      handleDeleteTask={handleDeleteTask}
                       colValue={col.value}
                     />
                   ))}
