@@ -75,7 +75,12 @@ router.get('/', optionalAuth, async (req, res) => {
     const params = [];
 
     if (!isAdmin) {
-      query += ` AND hidden = false AND review_status = 'Approved'`;
+      if (uid) {
+        params.push(uid);
+        query += ` AND hidden = false AND (review_status = 'Approved' OR leader_id = $${params.length})`;
+      } else {
+        query += ` AND hidden = false AND review_status = 'Approved'`;
+      }
     }
     if (category && category !== 'All') { params.push(category); query += ` AND category = $${params.length}`; }
     if (status && status !== 'All') { params.push(status); query += ` AND status = $${params.length}`; }

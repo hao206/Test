@@ -48,13 +48,17 @@ router.post('/register', async (req, res) => {
     if (!email || !password || !fullName || !studentId) {
       return res.status(400).json({ error: 'Email, mật khẩu, họ tên và MSSV là bắt buộc.' });
     }
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail.endsWith('@gmail.com') && !cleanEmail.endsWith('@st.utt.edu.vn')) {
+      return res.status(400).json({ error: 'Email phải có định dạng @gmail.com hoặc @st.utt.edu.vn' });
+    }
     if (password.length < 6) {
       return res.status(400).json({ error: 'Mật khẩu phải ít nhất 6 ký tự.' });
     }
 
     const existing = await pool.query(
       'SELECT id FROM users WHERE email = $1 OR student_id = $2',
-      [email.toLowerCase(), studentId]
+      [cleanEmail, studentId]
     );
     if (existing.rows.length > 0) {
       return res.status(409).json({ error: 'Email hoặc MSSV đã tồn tại.' });
@@ -64,11 +68,11 @@ router.post('/register', async (req, res) => {
     const result = await pool.query(
       `INSERT INTO users (email, password_hash, full_name, student_id, role, faculty, major, academic_year)
        VALUES ($1,$2,$3,$4,'Student',$5,$6,$7) RETURNING id`,
-      [email.toLowerCase(), hash, fullName, studentId, faculty || null, major || null, academicYear || null]
+      [cleanEmail, hash, fullName, studentId, faculty || null, major || null, academicYear || null]
     );
     const userId = result.rows[0].id;
     const profile = await getUserWithExtras(userId);
-    const token = signToken({ id: userId, email: email.toLowerCase(), full_name: fullName, role: 'Student', student_id: studentId });
+    const token = signToken({ id: userId, email: cleanEmail, full_name: fullName, role: 'Student', student_id: studentId });
 
     // Audit log
     const ip = req.ip || req.headers['x-forwarded-for'] || '0.0.0.0';
@@ -90,7 +94,8 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email và mật khẩu là bắt buộc.' });
 
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
+    const cleanEmail = email.trim().toLowerCase();
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [cleanEmail]);
     const user = result.rows[0];
     if (!user) return res.status(401).json({ error: 'Email hoặc mật khẩu không đúng.' });
     if (user.locked) return res.status(403).json({ error: 'Tài khoản đã bị khóa. Vui lòng liên hệ Admin.' });

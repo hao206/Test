@@ -12,12 +12,14 @@ export const Settings: React.FC = () => {
   const addLog = useAuditStore((s) => s.addLog);
   const addToast = useToastStore((s) => s.addToast);
 
+  const [fullName, setFullName] = useState(user?.fullName || '');
   const [major, setMajor] = useState(user?.major || '');
   const [avatar, setAvatar] = useState(user?.avatar || '');
   const [biography, setBiography] = useState(user?.biography || '');
 
   useEffect(() => {
     if (user) {
+      setFullName(user.fullName);
       setMajor(user.major);
       setAvatar(user.avatar);
       setBiography(user.biography || '');
@@ -27,6 +29,7 @@ export const Settings: React.FC = () => {
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     updateProfile({
+      fullName,
       major,
       avatar,
       biography,
@@ -87,6 +90,15 @@ export const Settings: React.FC = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
           <div>
+            <label className="block text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1 font-mono">Full Name</label>
+            <input 
+              type="text" 
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full bg-[#161616] border border-white/5 rounded-xl p-3 text-white focus:outline-none" 
+            />
+          </div>
+          <div>
             <label className="block text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1 font-mono">Major Degree Focus</label>
             <input 
               type="text" 
@@ -95,14 +107,19 @@ export const Settings: React.FC = () => {
               className="w-full bg-[#161616] border border-white/5 rounded-xl p-3 text-white focus:outline-none" 
             />
           </div>
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1 font-mono">Profile Avatar Link (Unsplash URL)</label>
-            <input 
-              type="text" 
-              value={avatar} 
-              onChange={(e) => setAvatar(e.target.value)}
-              className="w-full bg-[#161616] border border-white/5 rounded-xl p-3 text-white focus:outline-none font-mono text-xs" 
-            />
+            <div className="flex gap-4 items-center">
+              {avatar && (
+                <img src={avatar} alt="Avatar Preview" className="w-12 h-12 rounded-full object-cover border-2 border-white/10 shrink-0" />
+              )}
+              <input 
+                type="text" 
+                value={avatar} 
+                onChange={(e) => setAvatar(e.target.value)}
+                className="w-full bg-[#161616] border border-white/5 rounded-xl p-3 text-white focus:outline-none font-mono text-xs" 
+              />
+            </div>
           </div>
         </div>
 

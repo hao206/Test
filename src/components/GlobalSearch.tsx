@@ -108,7 +108,7 @@ export const GlobalSearch: React.FC = () => {
 
     // Resources
     resources.forEach((r) => {
-      if (r.title.toLowerCase().includes(q)) {
+      if (r.title.toLowerCase().includes(q) && q.length > 0) {
         results.push({
           id: r.id, title: r.title, subtitle: `${r.category}`, type: 'resource', route: '/resources'
         });

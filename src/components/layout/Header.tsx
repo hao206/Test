@@ -102,7 +102,7 @@ export const Header: React.FC = () => {
                         <span className={`${notif.read ? 'text-text-secondary' : 'text-text-primary'} font-bold`}>{notif.title}</span>
                         {!notif.read && <span className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: accent }} />}
                       </div>
-                      <p className="text-[11px] text-text-muted leading-relaxed font-sans">{notif.description}</p>
+                      <p className="text-[11px] text-text-muted leading-relaxed font-sans break-words whitespace-pre-wrap">{notif.description}</p>
                       <span className="text-[9px] text-text-muted font-mono mt-2 inline-block bg-background px-2 py-0.5 rounded border border-border-dim">{notif.time}</span>
                     </div>
                   ))}

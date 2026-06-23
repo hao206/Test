@@ -76,11 +76,15 @@ const DraggableTaskCard: React.FC<DraggableCardProps> = ({
         <span className="text-[9px] text-text-muted font-mono flex items-center gap-1">
           <CheckCircle2 className="w-3 h-3 text-text-muted" /> {task.dueDate}
         </span>
-        {task.assignedAvatar ? (
+        {task.assignedTo && typeof task.assignedTo === 'object' && (task.assignedTo as any).avatar ? (
+          <Avatar src={(task.assignedTo as any).avatar} size="sm" className="w-5 h-5 border-surface shadow-sm" />
+        ) : task.assignedAvatar ? (
           <Avatar src={task.assignedAvatar} size="sm" className="w-5 h-5 border-surface shadow-sm" />
         ) : (
           <div className="w-5 h-5 rounded-full bg-surface-hover border border-border-dim flex items-center justify-center text-[8px] text-text-secondary font-bold">
-            {task.assignedTo ? task.assignedTo.charAt(0).toUpperCase() : '?'}
+            {task.assignedTo && typeof task.assignedTo === 'object' 
+              ? ((task.assignedTo as any).fullName?.charAt(0).toUpperCase() || '?')
+              : (task.assignedTo && typeof task.assignedTo === 'string' ? task.assignedTo.charAt(0).toUpperCase() : '?')}
           </div>
         )}
       </div>

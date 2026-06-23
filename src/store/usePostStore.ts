@@ -8,7 +8,7 @@ interface PostState {
   error: string | null;
   fetchPosts: (params?: Record<string, string>) => Promise<void>;
   addPost: (content: string, _images: string[], topic: string) => Promise<Post>;
-  likePost: (postId: string) => Promise<void>;
+  likePost: (postId: string) => Promise<boolean>;
   addComment: (postId: string, commentText: string) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
   deleteComment: (postId: string, commentId: string) => Promise<void>;
@@ -46,6 +46,7 @@ export const usePostStore = create<PostState>()((set) => ({
         p.id === postId ? { ...p, likes: res.likes, likedByMe: res.likedByMe, loved: res.likedByMe } : p
       ),
     }));
+    return res.likedByMe;
   },
 
   addComment: async (postId, commentText) => {

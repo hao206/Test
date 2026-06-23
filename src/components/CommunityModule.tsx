@@ -121,17 +121,17 @@ export const CommunityModule: React.FC<CommunityProps> = ({
     setSelectedPresetImage(null);
   };
 
-  const handleLikeClick = (postId: string) => {
+  const handleLikeClick = async (postId: string) => {
     if (activeUserRole === 'Guest') {
       addToast(lang === 'en' ? 'Guest mode restricts interactions.' : 'Chế độ khách không thể thực hiện tương tác.', 'error');
       return;
     }
     const matchedPost = posts.find(p => p.id === postId);
-    likePost(postId);
+    const isLiked = await likePost(postId);
     
     if (matchedPost) {
-      if (!matchedPost.loved) {
-        addLog(`Liked post by ${matchedPost.author}`, 'Community Portal', user?.fullName || 'Academic Peer');
+      if (isLiked) {
+        addLog(`Liked post by ${matchedPost.authorName || matchedPost.author}`, 'Community Portal', user?.fullName || 'Academic Peer');
         addToast(lang === 'en' ? 'Post engagement register!' : 'Đã thích bài viết!', 'success');
       }
     }
@@ -172,7 +172,7 @@ export const CommunityModule: React.FC<CommunityProps> = ({
 
     // Notify post author (Part B4 programmatic trigger)
     const targetPost = posts.find(p => p.id === postId);
-    if (targetPost && targetPost.author !== user?.fullName) {
+    if (targetPost && (targetPost.authorName || targetPost.author) !== user?.fullName) {
       addNotification(
         lang === 'en' ? 'New Post Feedback' : 'Tương tác mới trong bài đăng',
         `${user?.fullName || 'Academic Student'} replied to your topic thread: "${commentTxt.slice(0, 30)}..."`,
@@ -333,11 +333,11 @@ export const CommunityModule: React.FC<CommunityProps> = ({
               {/* Header profile cards layout */}
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                  <img src={post.avatar} className="w-9 h-9 rounded-full object-cover border border-white/5" alt="user" />
+                  <img src={post.authorAvatar || post.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120'} className="w-9 h-9 rounded-full object-cover border border-white/5" alt="user" />
                   <div>
-                    <h4 className="text-xs font-black font-display text-white">{post.author}</h4>
+                    <h4 className="text-xs font-black font-display text-white">{post.authorName || post.author}</h4>
                     <span className="text-[9px] text-[#CCFF00] font-bold tracking-tight uppercase px-1 rounded font-mono" style={{ color: accentColor }}>
-                      {post.role || 'Contributor'}
+                      {post.authorRole || post.role || 'Contributor'}
                     </span>
                   </div>
                 </div>
@@ -409,31 +409,20 @@ export const CommunityModule: React.FC<CommunityProps> = ({
               {/* Nested Comments layout wrapper thread */}
               <div className="bg-[#0A0A0A] rounded-2xl p-4 space-y-3">
                 {post.comments && (() => {
-                  const isExpanded = expandedComments[post.id];
-                  const commentsToShow = isExpanded ? post.comments : post.comments.slice(0, 2);
+                  const commentsToShow = post.comments;
                   return (
                     <>
                       {commentsToShow.map((c, i) => (
                         <div key={i} className="flex gap-2 text-xs py-1.5 border-b border-white/5 last:border-none">
                           <div className="w-6 h-6 rounded-full bg-white/5 border border-white/10 shrink-0 text-[10px] font-bold text-slate-400 flex items-center justify-center">
-                            {c.author.substring(0, 1).toUpperCase()}
+                            {(c.authorName || c.author || 'U').substring(0, 1).toUpperCase()}
                           </div>
                           <div>
-                            <div className="font-bold text-white font-mono">{c.author}</div>
+                            <div className="font-bold text-white font-mono">{c.authorName || c.author}</div>
                             <p className="text-slate-400 text-xs leading-relaxed mt-1 font-sans">{c.content}</p>
                           </div>
                         </div>
                       ))}
-                      {post.comments.length > 2 && (
-                        <button
-                          onClick={() => setExpandedComments(prev => ({ ...prev, [post.id]: !isExpanded }))}
-                          className="text-[10px] font-bold text-slate-500 hover:text-white transition-colors pt-1 uppercase tracking-wider block"
-                        >
-                          {isExpanded 
-                            ? (lang === 'en' ? 'Show less' : 'Rút gọn bình luận') 
-                            : (lang === 'en' ? `View ${post.comments.length - 2} more comments...` : `Xem thêm ${post.comments.length - 2} bình luận...`)}
-                        </button>
-                      )}
                     </>
                   );
                 })()}
