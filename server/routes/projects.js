@@ -189,6 +189,13 @@ router.put('/:id', requireAuth, async (req, res) => {
        WHERE id = $12 RETURNING *`,
       [name, description, category, requiredSkills, deadline, teamSize, progress, status, reviewStatus, hidden, featured, req.params.id]
     );
+
+    const ip = req.ip || req.headers['x-forwarded-for'] || '0.0.0.0';
+    await pool.query(
+      'INSERT INTO audit_logs (user_id, user_name, action, module, ip) VALUES ($1,$2,$3,$4,$5)',
+      [req.user.id, req.user.full_name || 'System', `Updated project: ${name || proj.rows[0].name}`, 'Project Hub', ip]
+    ).catch(() => {});
+
     const project = await enrichProject(updated.rows[0], req.user.id);
     res.json(project);
   } catch (err) {
@@ -207,6 +214,13 @@ router.delete('/:id', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Không có quyền xóa dự án này.' });
     }
     await pool.query('DELETE FROM projects WHERE id=$1', [req.params.id]);
+
+    const ip = req.ip || req.headers['x-forwarded-for'] || '0.0.0.0';
+    await pool.query(
+      'INSERT INTO audit_logs (user_id, user_name, action, module, ip) VALUES ($1,$2,$3,$4,$5)',
+      [req.user.id, req.user.full_name || 'System', `Deleted project ID: ${req.params.id}`, 'Project Hub', ip]
+    ).catch(() => {});
+
     res.json({ success: true });
   } catch (err) {
     console.error(err);

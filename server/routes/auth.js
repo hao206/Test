@@ -70,6 +70,13 @@ router.post('/register', async (req, res) => {
     const profile = await getUserWithExtras(userId);
     const token = signToken({ id: userId, email: email.toLowerCase(), full_name: fullName, role: 'Student', student_id: studentId });
 
+    // Audit log
+    const ip = req.ip || req.headers['x-forwarded-for'] || '0.0.0.0';
+    await pool.query(
+      'INSERT INTO audit_logs (user_id, user_name, action, module, ip) VALUES ($1,$2,$3,$4,$5)',
+      [userId, fullName, 'New User Registration', 'Auth', ip]
+    ).catch(() => {});
+
     res.status(201).json({ token, user: profile });
   } catch (err) {
     console.error(err);

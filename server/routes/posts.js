@@ -90,6 +90,12 @@ router.post('/', requireAuth, async (req, res) => {
     );
     const r = post.rows[0];
 
+    const ip = req.ip || req.headers['x-forwarded-for'] || '0.0.0.0';
+    await pool.query(
+      'INSERT INTO audit_logs (user_id, user_name, action, module, ip) VALUES ($1,$2,$3,$4,$5)',
+      [req.user.id, req.user.full_name, `Created Forum Post`, 'Forum', ip]
+    ).catch(() => {});
+
     res.status(201).json({
       id: String(r.id), authorId: String(r.author_id), authorName: r.author_name,
       authorAvatar: r.author_avatar, authorRole: r.author_role,
@@ -114,6 +120,13 @@ router.delete('/:id', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Bạn không có quyền xóa bài viết này.' });
     }
     await pool.query('DELETE FROM posts WHERE id=$1', [req.params.id]);
+
+    const ip = req.ip || req.headers['x-forwarded-for'] || '0.0.0.0';
+    await pool.query(
+      'INSERT INTO audit_logs (user_id, user_name, action, module, ip) VALUES ($1,$2,$3,$4,$5)',
+      [req.user.id, req.user.full_name, `Deleted Post ${req.params.id}`, 'Forum', ip]
+    ).catch(() => {});
+
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -180,6 +193,13 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
       [req.params.id, req.user.id, content.trim()]
     );
     const c = result.rows[0];
+
+    const ip = req.ip || req.headers['x-forwarded-for'] || '0.0.0.0';
+    await pool.query(
+      'INSERT INTO audit_logs (user_id, user_name, action, module, ip) VALUES ($1,$2,$3,$4,$5)',
+      [req.user.id, req.user.full_name, `Commented on Post ${req.params.id}`, 'Forum', ip]
+    ).catch(() => {});
+
     res.status(201).json({
       id: String(c.id), authorId: String(c.author_id),
       authorName: req.user.fullName, authorAvatar: null,

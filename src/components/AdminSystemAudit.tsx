@@ -133,8 +133,15 @@ export const AdminSystemAuditModule: React.FC<AdminSystemAuditProps> = ({ t, acc
   const updateResourceAdminState = useResourceStore((s) => s.updateResourceAdminState);
   const deleteResource = useResourceStore((s) => s.deleteResource);
   const auditLogs = useAuditStore((s) => s.auditLogs);
-  const addLog = useAuditStore((s) => s.addLog);
   const clearLogs = useAuditStore((s) => s.clearLogs);
+  const addLog = useAuditStore((s) => s.addLog);
+  const fetchUsers = useAdminStore((s) => s.fetchUsers);
+  const fetchAuditLogs = useAuditStore((s) => s.fetchAuditLogs);
+
+  React.useEffect(() => {
+    fetchUsers();
+    fetchAuditLogs();
+  }, [fetchUsers, fetchAuditLogs]);
 
   const filteredUsers = users.filter((user) =>
     `${user.fullName} ${user.email} ${user.role}`.toLowerCase().includes(query.toLowerCase())

@@ -10,6 +10,7 @@ import projectRoutes from './server/routes/projects.js';
 import taskRoutes    from './server/routes/tasks.js';
 import postRoutes    from './server/routes/posts.js';
 import userRoutes    from './server/routes/users.js';
+import adminRoutes   from './server/routes/admin.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -23,6 +24,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/tasks',    taskRoutes);
 app.use('/api/posts',    postRoutes);
 app.use('/api/users',    userRoutes);
+app.use('/api/admin',    adminRoutes);
 
 app.get('/api/health', async (_req, res) => {
   try {

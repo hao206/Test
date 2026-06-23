@@ -1,5 +1,7 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { AdminUser, NotificationAudience, Role, SystemNotification } from '../types';
+import { INITIAL_NOTIFICATIONS } from '../data';
 import api from '../lib/api';
 
 const nowLabel = () => new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -8,7 +10,7 @@ interface AdminState {
   users: AdminUser[];
   notifications: SystemNotification[];
   loading: boolean;
-  fetchUsers: (params?: Record<string, string>) => Promise<void>;
+  fetchUsers: () => Promise<void>;
   createUser: (payload: Pick<AdminUser, 'fullName' | 'email' | 'role'>) => void;
   updateUser: (userId: string, updates: Partial<AdminUser>) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
@@ -20,25 +22,16 @@ interface AdminState {
 
 export const useAdminStore = create<AdminState>()((set, get) => ({
   users: [],
-  notifications: [],
+  notifications: INITIAL_NOTIFICATIONS,
   loading: false,
 
-  fetchUsers: async (params = {}) => {
+  fetchUsers: async () => {
     set({ loading: true });
     try {
-      const qs = new URLSearchParams(params).toString();
-      const raw = await api.get<any[]>(`/users${qs ? `?${qs}` : ''}`);
-      const users: AdminUser[] = raw.map((u) => ({
-        id: String(u.id),
-        fullName: u.fullName,
-        email: u.email,
-        role: u.role,
-        status: u.locked ? 'Locked' : 'Active',
-        lastActiveAt: u.lastActiveAt || nowLabel(),
-        activityHistory: [],
-      }));
+      const users = await api.get<AdminUser[]>('/admin/users');
       set({ users, loading: false });
-    } catch {
+    } catch (err) {
+      console.error('Failed to fetch users', err);
       set({ loading: false });
     }
   },
@@ -55,27 +48,31 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     })),
 
   updateUser: async (userId, updates) => {
-    await api.put(`/users/${userId}/admin`, updates);
+    await api.put(`/admin/users/${userId}`, updates);
     set((state) => ({
       users: state.users.map((u) => u.id === userId ? { ...u, ...updates } : u),
     }));
   },
 
   deleteUser: async (userId) => {
-    await api.delete(`/users/${userId}`);
-    set((state) => ({ users: state.users.filter((u) => u.id !== userId) }));
+    try {
+      await api.delete(`/admin/users/${userId}`);
+      get().fetchUsers();
+    } catch (err) {
+      console.error('Failed to delete user', err);
+    }
   },
 
   toggleUserLock: async (userId) => {
-    const user = get().users.find((u) => u.id === userId);
-    if (!user) return;
-    const locked = user.status !== 'Locked';
-    await api.put(`/users/${userId}/admin`, { locked });
-    set((state) => ({
-      users: state.users.map((u) =>
-        u.id === userId ? { ...u, status: locked ? 'Locked' : 'Active' } : u
-      ),
-    }));
+    try {
+      const user = get().users.find((u) => u.id === userId);
+      if (!user) return;
+      const locked = user.status !== 'Locked';
+      await api.put(`/admin/users/${userId}/status`, { locked });
+      get().fetchUsers();
+    } catch (err) {
+      console.error('Failed to toggle lock', err);
+    }
   },
 
   resetUserPassword: (userId) =>
@@ -86,10 +83,12 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     })),
 
   changeUserRole: async (userId, role) => {
-    await api.put(`/users/${userId}/admin`, { role });
-    set((state) => ({
-      users: state.users.map((u) => u.id === userId ? { ...u, role } : u),
-    }));
+    try {
+      await api.put(`/admin/users/${userId}/role`, { role });
+      get().fetchUsers();
+    } catch (err) {
+      console.error('Failed to change role', err);
+    }
   },
 
   addSystemNotification: (payload) =>
