@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS posts (
   author_id           INTEGER REFERENCES users(id) ON DELETE SET NULL,
   content             TEXT NOT NULL,
   topic               VARCHAR(100) DEFAULT 'General',
+  images              JSONB DEFAULT '[]',
   pinned              BOOLEAN DEFAULT FALSE,
   locked              BOOLEAN DEFAULT FALSE,
   hidden              BOOLEAN DEFAULT FALSE,
@@ -163,3 +164,6 @@ CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_team_members_project ON team_members(project_id);
 CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, read);
+
+-- Migration commands (safe to run multiple times)
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]';

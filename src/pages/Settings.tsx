@@ -26,6 +26,17 @@ export const Settings: React.FC = () => {
     }
   }, [user]);
 
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatar(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     updateProfile({
@@ -108,17 +119,26 @@ export const Settings: React.FC = () => {
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1 font-mono">Profile Avatar Link (Unsplash URL)</label>
+            <label className="block text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1 font-mono">Profile Avatar (URL or File)</label>
             <div className="flex gap-4 items-center">
               {avatar && (
                 <img src={avatar} alt="Avatar Preview" className="w-12 h-12 rounded-full object-cover border-2 border-white/10 shrink-0" />
               )}
-              <input 
-                type="text" 
-                value={avatar} 
-                onChange={(e) => setAvatar(e.target.value)}
-                className="w-full bg-[#161616] border border-white/5 rounded-xl p-3 text-white focus:outline-none font-mono text-xs" 
-              />
+              <div className="flex-1 space-y-2">
+                <input 
+                  type="text" 
+                  value={avatar} 
+                  onChange={(e) => setAvatar(e.target.value)}
+                  placeholder="Paste image URL here"
+                  className="w-full bg-[#161616] border border-white/5 rounded-xl p-3 text-white focus:outline-none font-mono text-xs" 
+                />
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  className="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-white hover:file:bg-white/20 transition cursor-pointer"
+                />
+              </div>
             </div>
           </div>
         </div>

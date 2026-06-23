@@ -22,6 +22,8 @@ interface AuthState {
   addReputation: (amount: number) => void;
   authenticate: (email: string, password: string) => any;
   registerAccount: (account: any) => boolean;
+  clearAuth: () => void;
+  fetchLeaderboard: () => Promise<any[]>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -107,7 +109,24 @@ export const useAuthStore = create<AuthState>()(
         } catch { /* handled by api client */ }
       },
 
-      addReputation: (_amount: number) => {},
+      addReputation: async (amount: number) => {
+    try {
+      await api.post('/auth/xp', { amount });
+      set((state) => ({
+        user: state.user ? { ...state.user, reputationScore: state.user.reputationScore + amount } : null
+      }));
+    } catch (err) {
+      console.error(err);
+    }
+  },
+      fetchLeaderboard: async () => {
+        try {
+          const res = await api.get<any[]>('/auth/leaderboard');
+          return res;
+        } catch {
+          return [];
+        }
+      },
       authenticate: (_e: string, _p: string) => undefined,
       registerAccount: (_a: any) => false,
     }),

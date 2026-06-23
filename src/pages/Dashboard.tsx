@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useUIStore } from '../store/useUIStore';
@@ -23,8 +23,16 @@ export const Dashboard: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const projects = useProjectStore((s) => s.projects);
   const tasks = useTaskStore((s) => s.tasks);
+  const fetchLeaderboard = useAuthStore((s) => s.fetchLeaderboard);
 
   const [widgetTaskFilter, setWidgetTaskFilter] = useState<'All' | 'High'>('All');
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+
+  useEffect(() => {
+    useProjectStore.getState().fetchProjects();
+    useTaskStore.getState().fetchTasks(''); // fetches all tasks if supported, or at least initializes
+    fetchLeaderboard().then(data => setLeaderboard(data));
+  }, []);
 
   // Filter tasks assigned to current user
   const userFilteredTasks = tasks.filter(task => {
@@ -202,6 +210,42 @@ export const Dashboard: React.FC = () => {
             {lang === 'en' ? 'Please log in to see profile stats.' : 'Vui lòng đăng nhập để xem thông tin cá nhân.'}
           </div>
         )}
+
+        {/* Leaderboard Widget */}
+        <div className="bg-surface border border-border-dim rounded-[24px] p-6 space-y-4">
+          <div className="flex items-center gap-2 pb-2 border-b border-border-dim">
+            <span className="text-xl">🏆</span>
+            <h3 className="font-bold text-text-primary text-sm font-display tracking-wide uppercase">
+              {lang === 'en' ? 'Top Contributors' : 'Bảng Xếp Hạng'}
+            </h3>
+          </div>
+          <div className="space-y-3">
+            {leaderboard.length > 0 ? leaderboard.map((l, idx) => (
+              <div key={l.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-surface-hover transition group">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                  idx === 0 ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' :
+                  idx === 1 ? 'bg-slate-300/20 text-slate-300 border border-slate-300/30' :
+                  idx === 2 ? 'bg-amber-600/20 text-amber-600 border border-amber-600/30' :
+                  'bg-background text-text-muted border border-border-dim'
+                }`}>
+                  #{idx + 1}
+                </div>
+                <Avatar src={l.avatar} size="sm" className="w-8 h-8 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-xs font-bold text-text-primary truncate group-hover:text-accent-primary transition-colors">{l.fullName}</h4>
+                  <span className="text-[9px] text-text-muted font-mono">{l.studentId} • {l.major || 'IT'}</span>
+                </div>
+                <div className="text-[10px] font-bold text-accent-primary bg-accent-primary/10 px-2 py-1 rounded-lg">
+                  {l.score} XP
+                </div>
+              </div>
+            )) : (
+              <div className="text-center text-xs text-text-muted py-4 font-mono">
+                {lang === 'en' ? 'No data available.' : 'Chưa có dữ liệu.'}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
     </div>

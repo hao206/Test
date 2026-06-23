@@ -35,6 +35,7 @@ const ProjectHubModule = lazy(() => import('./components/ProjectHubModule').then
 const TeamFlowModule = lazy(() => import('./components/TeamFlowModule').then((module) => ({ default: module.TeamFlowModule })));
 const CommunityModule = lazy(() => import('./components/CommunityModule').then((module) => ({ default: module.CommunityModule })));
 const ResourceModule = lazy(() => import('./components/ResourceModule').then((module) => ({ default: module.ResourceModule })));
+const LeaderboardModule = lazy(() => import('./components/LeaderboardModule').then((module) => ({ default: module.LeaderboardModule })));
 
 const RouteSkeleton: React.FC = () => (
   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-pulse">
@@ -119,6 +120,8 @@ const Layout: React.FC = () => {
     { label: t.projectHub, path: '/projects', icon: FolderKanban },
     { label: t.teamFlow, path: '/teamflow', icon: ClipboardCheck },
     { label: t.community, path: '/community', icon: MessageCircle },
+    { label: lang === 'en' ? 'Resources' : 'Thư viện tài nguyên', path: '/resources', icon: FileText },
+    { label: lang === 'en' ? 'Leaderboard' : 'Bảng Xếp Hạng', path: '/leaderboard', icon: Award },
     { label: t.settings, path: '/settings', icon: Settings },
   ];
 
@@ -228,6 +231,7 @@ const Layout: React.FC = () => {
               <Route path="/teamflow" element={<TeamFlowModule />} />
               <Route path="/community" element={<CommunityModule />} />
               <Route path="/resources" element={<ResourceModule />} />
+              <Route path="/leaderboard" element={<LeaderboardModule />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/profile/:userId" element={<ProfilePage />} />
               <Route path="/admin" element={<AdminPage />} />

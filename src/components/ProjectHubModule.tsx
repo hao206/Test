@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, FolderPlus, Loader2, Star, Calendar, Users, CheckCircle } from 'lucide-react';
+import { Search, FolderPlus, Loader2, Star, Calendar, Users, CheckCircle, Check, X } from 'lucide-react';
 import { Project } from '../types';
+import api from '../lib/api';
 import { translations } from '../translations';
 
 // Zustand stores
@@ -28,7 +29,13 @@ export const ProjectHubModule: React.FC<ProjectHubProps> = ({
   const applyProject = useProjectStore((s) => s.applyToProject);
   const finalizeTeam = useProjectStore((s) => s.finalizeTeam);
 
-  useEffect(() => { fetchProjects(); }, []);
+  useEffect(() => {
+    fetchProjects();
+    const interval = setInterval(() => {
+      fetchProjects();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const addLog = useAuditStore((s) => s.addLog);
   const addToast = useToastStore((s) => s.addToast);
@@ -54,6 +61,10 @@ export const ProjectHubModule: React.FC<ProjectHubProps> = ({
   const [applyStates, setApplyStates] = useState<Record<string, 'idle' | 'applying' | 'done'>>({});
   const [applyRemark, setApplyRemark] = useState('');
   const [pendingApplyProjId, setPendingApplyProjId] = useState<string | null>(null);
+
+  const [showManageModal, setShowManageModal] = useState(false);
+  const [manageProjId, setManageProjId] = useState<string | null>(null);
+  const [manageApplications, setManageApplications] = useState<any[]>([]);
 
   const categories = ['All', 'Web Application', 'IoT & Hardware', 'Blockchain', 'Artificial Intelligence', 'Mobile Application'];
   const statuses = ['All', 'Recruiting', 'Active', 'Completed', 'Archived'];
@@ -133,6 +144,28 @@ export const ProjectHubModule: React.FC<ProjectHubProps> = ({
     } catch (err: any) {
       addToast(err.message || 'Gửi đơn thất bại.', 'error');
       setApplyStates(prev => ({ ...prev, [projId]: 'idle' }));
+    }
+  };
+
+  const openManageApplications = async (projId: string) => {
+    setManageProjId(projId);
+    setShowManageModal(true);
+    setManageApplications([]);
+    try {
+      const res = await api.get(`/projects/${projId}/applications`);
+      setManageApplications(res);
+    } catch (err: any) {
+      addToast('Lỗi tải danh sách đơn', 'error');
+    }
+  };
+
+  const handleApproveApplication = async (appId: string, action: 'approve' | 'reject') => {
+    try {
+      await api.put(`/projects/${manageProjId}/applications/${appId}`, { action });
+      addToast('Đã xử lý đơn thành công', 'success');
+      setManageApplications(prev => prev.map(a => a.id === appId ? { ...a, status: action === 'approve' ? 'Approved' : 'Rejected' } : a));
+    } catch (err: any) {
+      addToast('Lỗi xử lý đơn', 'error');
     }
   };
 
@@ -335,9 +368,17 @@ export const ProjectHubModule: React.FC<ProjectHubProps> = ({
 
                 {p.status === 'Recruiting' && (
                   <div className="pt-2">
-                    {applyStates[p.id] === 'done' ? (
+                    {p.leaderId === user?.id ? (
+                      <button
+                        onClick={() => openManageApplications(p.id)}
+                        className="w-full py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                      >
+                        {lang === 'en' ? 'Manage Applications' : 'Quản lý đơn xin vào'}
+                      </button>
+                    ) : p.myApplication || applyStates[p.id] === 'done' ? (
                       <div className="w-full text-center py-2 bg-emerald-500/10 text-emerald-400 text-xs rounded-xl font-bold flex items-center justify-center gap-2">
-                        <CheckCircle className="w-4 h-4" /> {t.btnDone}
+                        <CheckCircle className="w-4 h-4" /> 
+                        {p.myApplication?.status === 'Approved' ? 'Đã duyệt' : (p.myApplication?.status === 'Rejected' ? 'Từ chối' : t.btnDone)}
                       </div>
                     ) : (
                       <button
@@ -530,6 +571,71 @@ export const ProjectHubModule: React.FC<ProjectHubProps> = ({
               >
                 {t.backToGuestBtn}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Applications Modal */}
+      {showManageModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in font-sans">
+          <div className="w-full max-w-2xl bg-[#111111] border border-white/10 rounded-[28px] p-6 space-y-4 max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center pb-2 border-b border-white/5">
+              <h3 className="text-lg font-black text-white font-display">
+                {lang === 'en' ? 'Manage Applications' : 'Quản lý đơn xin gia nhập'}
+              </h3>
+              <button onClick={() => setShowManageModal(false)} className="p-2 text-slate-400 hover:text-white cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+              {manageApplications.length === 0 ? (
+                <div className="text-center text-slate-500 text-xs py-10 font-mono">
+                  {lang === 'en' ? 'No applications yet.' : 'Chưa có đơn xin gia nhập nào.'}
+                </div>
+              ) : (
+                manageApplications.map(app => (
+                  <div key={app.id} className="bg-[#161616] border border-white/5 rounded-xl p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex gap-3">
+                        <img src={app.applicant.avatar} className="w-10 h-10 rounded-full object-cover border border-white/10" alt="avatar"/>
+                        <div>
+                          <h4 className="font-bold text-white text-sm">{app.applicant.fullName}</h4>
+                          <span className="text-[10px] text-slate-400 font-mono block">{app.applicant.studentId} • {app.applicant.major}</span>
+                          <span className="text-[10px] text-[#CCFF00] font-bold">XP: {app.applicant.reputationScore} • Độ phù hợp: {app.applicant.matchScore}%</span>
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase ${
+                        app.status === 'Approved' ? 'bg-emerald-500/10 text-emerald-400' :
+                        app.status === 'Rejected' ? 'bg-red-500/10 text-red-400' :
+                        'bg-yellow-500/10 text-yellow-400'
+                      }`}>
+                        {app.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 bg-black/40 p-3 rounded-lg leading-relaxed line-clamp-3 italic">
+                      "{app.remark}"
+                    </p>
+                    {app.status === 'Pending' && (
+                      <div className="flex justify-end gap-2 pt-2">
+                        <button 
+                          onClick={() => handleApproveApplication(app.id, 'reject')}
+                          className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                        >
+                          Từ chối
+                        </button>
+                        <button 
+                          onClick={() => handleApproveApplication(app.id, 'approve')}
+                          className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <Check className="w-3.5 h-3.5" /> Chấp nhận
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

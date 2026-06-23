@@ -83,7 +83,7 @@ const DraggableTaskCard: React.FC<DraggableCardProps> = ({
         ) : (
           <div className="w-5 h-5 rounded-full bg-surface-hover border border-border-dim flex items-center justify-center text-[8px] text-text-secondary font-bold">
             {task.assignedTo && typeof task.assignedTo === 'object' 
-              ? ((task.assignedTo as any).fullName?.charAt(0).toUpperCase() || '?')
+              ? (((task.assignedTo as any).fullName || '?').charAt(0).toUpperCase())
               : (task.assignedTo && typeof task.assignedTo === 'string' ? task.assignedTo.charAt(0).toUpperCase() : '?')}
           </div>
         )}
@@ -185,6 +185,14 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (!activeProjectId) return;
+    const interval = setInterval(() => {
+      fetchTasks(activeProjectId);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [activeProjectId]);
   const user = useAuthStore((state) => state.user);
   const addLog = useAuditStore((state) => state.addLog);
   const addToast = useToastStore((state) => state.addToast);
@@ -203,7 +211,7 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
   const [taskPriority, setTaskPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
   const [taskAssigned, setTaskAssigned] = useState('Alex Nguyen');
   const [taskDueDate, setTaskDueDate] = useState('2026-06-25');
-  const [selectedProjectId, setSelectedProjectId] = useState(projects[0]?.id || 'p1');
+  const [selectedProjectId, setSelectedProjectId] = useState('');
 
   const columns: { label: string; value: TaskStatus; color: string }[] = [
     { label: lang === 'en' ? 'Backlog' : 'Tồn đọng', value: 'Backlog', color: '#ff007f' },
@@ -432,7 +440,7 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
                 <div>
                   <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1">{t.categoryTitle}</label>
                   <select
-                    value={selectedProjectId}
+                    value={selectedProjectId || activeProjectId || projects[0]?.id || ''}
                     onChange={(e) => setSelectedProjectId(e.target.value)}
                     className="w-full bg-background border border-border-dim text-xs text-text-primary rounded-xl p-3 focus:outline-none focus:border-accent-primary transition cursor-pointer"
                   >

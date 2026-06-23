@@ -44,6 +44,7 @@ router.get('/', optionalAuth, async (req, res) => {
         authorRole: r.author_role,
         content: r.content,
         topic: r.topic,
+        images: typeof r.images === 'string' ? JSON.parse(r.images) : (r.images || []),
         pinned: r.pinned,
         locked: r.locked,
         moderationStatus: r.moderation_status,
@@ -71,16 +72,17 @@ router.get('/', optionalAuth, async (req, res) => {
 /* ── POST /api/posts ──────────────────────────────────────── */
 router.post('/', requireAuth, async (req, res) => {
   try {
-    const { content, topic } = req.body;
+    const { content, topic, images } = req.body;
     if (!content?.trim()) return res.status(400).json({ error: 'Nội dung bài viết không được để trống.' });
     if (content.length > 3000) return res.status(400).json({ error: 'Bài viết không được vượt quá 3000 ký tự.' });
 
     const isAdmin = ['Admin', 'Moderator'].includes(req.user.role);
     const modStatus = isAdmin ? 'Approved' : 'Approved'; // auto-approve for now
+    const safeImages = Array.isArray(images) ? JSON.stringify(images) : '[]';
 
     const result = await pool.query(
-      `INSERT INTO posts (author_id, content, topic, moderation_status) VALUES ($1,$2,$3,$4) RETURNING id`,
-      [req.user.id, content.trim(), topic || 'General', modStatus]
+      `INSERT INTO posts (author_id, content, topic, images, moderation_status) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+      [req.user.id, content.trim(), topic || 'General', safeImages, modStatus]
     );
 
     const post = await pool.query(
@@ -99,7 +101,7 @@ router.post('/', requireAuth, async (req, res) => {
     res.status(201).json({
       id: String(r.id), authorId: String(r.author_id), authorName: r.author_name,
       authorAvatar: r.author_avatar, authorRole: r.author_role,
-      content: r.content, topic: r.topic, pinned: false, locked: false,
+      content: r.content, topic: r.topic, images: typeof r.images === 'string' ? JSON.parse(r.images) : (r.images || []), pinned: false, locked: false,
       moderationStatus: r.moderation_status, createdAt: r.created_at,
       likes: 0, likedByMe: false, comments: [],
     });

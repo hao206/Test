@@ -27,7 +27,13 @@ export const CommunityModule: React.FC<CommunityProps> = ({
   const addPost = usePostStore((s) => s.addPost);
   const deletePost = usePostStore((s) => s.deletePost);
 
-  useEffect(() => { fetchPosts(); }, []);
+  useEffect(() => {
+    fetchPosts();
+    const interval = setInterval(() => {
+      fetchPosts();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, []);
   const likePost = usePostStore((s) => s.likePost);
   const addComment = usePostStore((s) => s.addComment);
   const moderatePost = usePostStore((s) => s.moderatePost);
@@ -114,8 +120,9 @@ export const CommunityModule: React.FC<CommunityProps> = ({
       selectedTopic
     );
 
+    addReputation(20);
     addLog(`Published new social forum post about ${selectedTopic}`, 'Community Portal', user?.fullName || 'Academic Peer');
-    addToast(lang === 'en' ? 'Post published successfully +60 XP!' : 'Đã đăng bài viết thành công +60 XP!', 'success');
+    addToast(lang === 'en' ? 'Post published successfully +20 XP!' : 'Đã đăng bài viết thành công +20 XP!', 'success');
 
     setNewPostContent('');
     setSelectedPresetImage(null);
@@ -131,8 +138,9 @@ export const CommunityModule: React.FC<CommunityProps> = ({
     
     if (matchedPost) {
       if (isLiked) {
+        addReputation(5);
         addLog(`Liked post by ${matchedPost.authorName || matchedPost.author}`, 'Community Portal', user?.fullName || 'Academic Peer');
-        addToast(lang === 'en' ? 'Post engagement register!' : 'Đã thích bài viết!', 'success');
+        addToast(lang === 'en' ? 'Post engagement register +5 XP!' : 'Đã thích bài viết +5 XP!', 'success');
       }
     }
   };
@@ -166,9 +174,10 @@ export const CommunityModule: React.FC<CommunityProps> = ({
     }
 
     addComment(postId, commentTxt);
-
+    
+    addReputation(10);
     addLog(`Injected social feedback comment on post reference ID: ${postId}`, 'Community Portal', user?.fullName || 'Academic Peer');
-    addToast(lang === 'en' ? 'Comment added +30 XP!' : 'Đã thêm bình luận +30 XP!', 'success');
+    addToast(lang === 'en' ? 'Comment added +10 XP!' : 'Đã thêm bình luận +10 XP!', 'success');
 
     // Notify post author (Part B4 programmatic trigger)
     const targetPost = posts.find(p => p.id === postId);
@@ -409,7 +418,8 @@ export const CommunityModule: React.FC<CommunityProps> = ({
               {/* Nested Comments layout wrapper thread */}
               <div className="bg-[#0A0A0A] rounded-2xl p-4 space-y-3">
                 {post.comments && (() => {
-                  const commentsToShow = post.comments;
+                  const isExpanded = expandedComments[post.id];
+                  const commentsToShow = isExpanded ? post.comments : post.comments.slice(0, 2);
                   return (
                     <>
                       {commentsToShow.map((c, i) => (
@@ -423,6 +433,17 @@ export const CommunityModule: React.FC<CommunityProps> = ({
                           </div>
                         </div>
                       ))}
+                      {post.comments.length > 2 && (
+                        <button 
+                          onClick={() => setExpandedComments(prev => ({ ...prev, [post.id]: !isExpanded }))}
+                          className="text-[10px] font-mono hover:underline cursor-pointer mt-1 block"
+                          style={{ color: accentColor }}
+                        >
+                          {isExpanded 
+                            ? (lang === 'en' ? 'Hide comments' : 'Thu gọn bình luận') 
+                            : (lang === 'en' ? `View all ${post.comments.length} comments` : `Xem tất cả ${post.comments.length} bình luận`)}
+                        </button>
+                      )}
                     </>
                   );
                 })()}

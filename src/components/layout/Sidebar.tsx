@@ -28,6 +28,8 @@ export const Sidebar: React.FC = () => {
     { label: t.projectHub, path: '/projects', icon: FolderKanban },
     { label: t.teamFlow, path: '/teamflow', icon: ClipboardCheck },
     { label: t.community, path: '/community', icon: MessageCircle },
+    { label: lang === 'en' ? 'Resources' : 'Thư viện tài nguyên', path: '/resources', icon: FileText },
+    { label: lang === 'en' ? 'Leaderboard' : 'Bảng Xếp Hạng', path: '/leaderboard', icon: Award },
     { label: t.settings, path: '/settings', icon: Settings },
   ];
 
@@ -94,32 +96,45 @@ export const Sidebar: React.FC = () => {
 
       {user && (
         <div className="bg-surface/90 rounded-[28px] p-5 border border-border-dim relative overflow-hidden select-none">
-          <div className="relative z-10 space-y-3">
-            <div className="flex justify-between text-[10px] text-text-muted font-mono font-bold uppercase tracking-wider">
-              <span>Reputation Stats</span>
-              <span>{user.reputationScore} XP</span>
-            </div>
-            <div className="w-full bg-border-dim h-1 rounded-full overflow-hidden">
-              <div 
-                className="h-full rounded-full transition-all duration-500" 
-                style={{ width: `${Math.min((user.reputationScore / 5000) * 100, 100)}%`, backgroundColor: accent }}
-              />
-            </div>
-            <div className="flex justify-between items-center pt-2">
-              <div className="flex items-center gap-2">
-                <img src={user.avatar} className="w-6.5 h-6.5 rounded-full object-cover border border-border-dim" alt="user avatar" />
-                <span className="text-[10px] font-bold text-text-primary max-w-[100px] truncate">{user.fullName.split(' ')[0]}</span>
-              </div>
+          {user.role === 'Guest' ? (
+            <div className="relative z-10 flex flex-col items-center gap-3">
+              <span className="text-xs font-bold text-text-primary text-center">{lang === 'en' ? 'Guest Mode Active' : 'Chế độ khách'}</span>
               <button
                 onClick={handleLogout}
-                className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-xs flex items-center gap-2 transition"
-                title={t.logout}
+                className="w-full px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-xs flex justify-center items-center gap-2 transition"
               >
                 <LogOut className="w-4 h-4" />
-                <span className="uppercase text-[10px] tracking-wider">{t.logout}</span>
+                <span className="uppercase text-[10px] tracking-wider">{lang === 'en' ? 'Exit Guest Mode' : 'Thoát chế độ khách'}</span>
               </button>
             </div>
-          </div>
+          ) : (
+            <div className="relative z-10 space-y-3">
+              <div className="flex justify-between text-[10px] text-text-muted font-mono font-bold uppercase tracking-wider">
+                <span>Reputation Stats</span>
+                <span>{user.reputationScore} XP</span>
+              </div>
+              <div className="w-full bg-border-dim h-1 rounded-full overflow-hidden">
+                <div 
+                  className="h-full rounded-full transition-all duration-500" 
+                  style={{ width: `${Math.min((user.reputationScore / 5000) * 100, 100)}%`, backgroundColor: accent }}
+                />
+              </div>
+              <div className="flex justify-between items-center pt-2">
+                <div className="flex items-center gap-2">
+                  <img src={user.avatar} className="w-6.5 h-6.5 rounded-full object-cover border border-border-dim" alt="user avatar" />
+                  <span className="text-[10px] font-bold text-text-primary max-w-[100px] truncate">{user.fullName.split(' ')[0]}</span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-xs flex items-center gap-2 transition"
+                  title={t.logout}
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="uppercase text-[10px] tracking-wider">{t.logout}</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </aside>
