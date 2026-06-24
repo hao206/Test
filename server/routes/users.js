@@ -167,6 +167,7 @@ router.get('/notifications/mine', requireAuth, async (req, res) => {
     res.json(result.rows.map((n) => ({
       id: String(n.id), userId: n.user_id ? String(n.user_id) : null,
       title: n.title, message: n.message, type: n.type,
+      targetId: n.target_id ? String(n.target_id) : undefined,
       read: n.read, createdAt: n.created_at,
     })));
   } catch (err) {
@@ -215,6 +216,17 @@ router.post('/notifications', requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Tạo thông báo thất bại.' });
+  }
+});
+
+/* ── DELETE /api/users/notifications/:id ─────────────────── */
+router.delete('/notifications/:id', requireAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM notifications WHERE id=$1 AND (user_id=$2 OR user_id IS NULL)', [req.params.id, req.user.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Xóa thông báo thất bại.' });
   }
 });
 

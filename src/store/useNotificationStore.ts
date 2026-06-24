@@ -7,7 +7,8 @@ export interface NotificationItem {
   description: string;
   time: string;
   read: boolean;
-  type: 'apply' | 'task' | 'comment' | 'badge' | 'info';
+  targetId?: string;
+  type: 'apply' | 'task' | 'comment' | 'badge' | 'info' | 'admin' | 'success' | string;
 }
 
 interface NotificationState {
@@ -17,6 +18,7 @@ interface NotificationState {
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   clearAll: () => void;
+  deleteNotification: (id: string) => void;
 }
 
 export const useNotificationStore = create<NotificationState>()(
@@ -45,6 +47,7 @@ export const useNotificationStore = create<NotificationState>()(
             description: n.message,
             time: new Date(n.createdAt).toLocaleString(),
             read: n.read,
+            targetId: n.targetId,
             type: n.type
           }));
           set({ notifications: serverNotifs });
@@ -74,6 +77,15 @@ export const useNotificationStore = create<NotificationState>()(
       clearAll: () => {
         set({ notifications: [] });
         api.delete('/users/notifications/clear').catch(() => {});
+      },
+
+      deleteNotification: (id) => {
+        set((state) => ({
+          notifications: state.notifications.filter((n) => n.id !== id)
+        }));
+        if (!id.startsWith('notif_')) {
+          api.delete(`/users/notifications/${id}`).catch(() => {});
+        }
       }
     })
 );

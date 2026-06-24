@@ -160,9 +160,9 @@ router.post('/', requireAuth, async (req, res) => {
 
     // Notify admin
     await pool.query(
-      `INSERT INTO notifications (title, message, type)
-       VALUES ('Dự án mới cần duyệt', $1, 'info')`,
-      [`Dự án "${name}" bởi ${req.user.fullName} đang chờ duyệt.`]
+      `INSERT INTO notifications (title, message, type, target_id)
+       VALUES ('Dự án mới cần duyệt', $1, 'info', $2)`,
+      [`Dự án "${name}" bởi ${req.user.fullName} đang chờ duyệt.`, result.rows[0].id]
     ).catch(() => {});
 
     const project = await enrichProject(result.rows[0], req.user.id);
@@ -257,9 +257,9 @@ router.post('/:id/apply', requireAuth, async (req, res) => {
 
     // Notify project leader
     await pool.query(
-      `INSERT INTO notifications (user_id, title, message, type)
-       VALUES ($1, 'Đơn ứng tuyển mới', $2, 'info')`,
-      [proj.rows[0].leader_id, `${req.user.fullName} đã xin gia nhập dự án "${proj.rows[0].name}".`]
+      `INSERT INTO notifications (user_id, title, message, type, target_id)
+       VALUES ($1, 'Đơn ứng tuyển mới', $2, 'apply', $3)`,
+      [proj.rows[0].leader_id, `${req.user.fullName} đã xin gia nhập dự án "${proj.rows[0].name}".`, projId]
     ).catch(() => {});
 
     res.status(201).json(result.rows[0]);
@@ -347,8 +347,8 @@ router.put('/:id/applications/:appId', requireAuth, async (req, res) => {
       ? `Đơn ứng tuyển vào dự án "${proj.rows[0].name}" của bạn đã được CHẤP NHẬN! 🎉`
       : `Đơn ứng tuyển vào dự án "${proj.rows[0].name}" của bạn chưa phù hợp lần này.`;
     await pool.query(
-      'INSERT INTO notifications (user_id, title, message, type) VALUES ($1,$2,$3,$4)',
-      [app.applicant_id, action === 'approve' ? 'Đơn được chấp nhận 🎉' : 'Kết quả đơn ứng tuyển', msg, action === 'approve' ? 'success' : 'info']
+      'INSERT INTO notifications (user_id, title, message, type, target_id) VALUES ($1,$2,$3,$4,$5)',
+      [app.applicant_id, action === 'approve' ? 'Đơn được chấp nhận 🎉' : 'Kết quả đơn ứng tuyển', msg, action === 'approve' ? 'success' : 'info', req.params.id]
     ).catch(() => {});
 
     res.json(appRes.rows[0]);
@@ -384,8 +384,8 @@ router.post('/:id/finalize', requireAuth, async (req, res) => {
       );
       // Notify each member
       await pool.query(
-        `INSERT INTO notifications (user_id, title, message, type) VALUES ($1,$2,$3,'success')`,
-        [row.applicant_id, 'Nhóm đã chốt! 🚀', `Bạn đã chính thức gia nhập dự án "${proj.rows[0].name}". Workspace Kanban đã sẵn sàng.`]
+        `INSERT INTO notifications (user_id, title, message, type, target_id) VALUES ($1,$2,$3,'success',$4)`,
+        [row.applicant_id, 'Nhóm đã chốt! 🚀', `Bạn đã chính thức gia nhập dự án "${proj.rows[0].name}". Workspace Kanban đã sẵn sàng.`, projId]
       ).catch(() => {});
     }
 
@@ -442,6 +442,78 @@ router.get('/:id/team', requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Không thể tải danh sách thành viên.' });
+  }
+});
+
+/* ── TEAM CHAT (max 50 messages) ──────────────────────────── */
+
+/* GET /api/projects/:id/chat */
+router.get('/:id/chat', requireAuth, async (req, res) => {
+  try {
+    const projId = req.params.id;
+    // Check membership
+    const member = await pool.query(
+      'SELECT 1 FROM team_members WHERE project_id=$1 AND user_id=$2 UNION SELECT 1 FROM projects WHERE id=$1 AND leader_id=$2',
+      [projId, req.user.id]
+    );
+    if (!member.rows.length) return res.status(403).json({ error: 'Chỉ thành viên mới xem được chat.' });
+
+    const result = await pool.query(
+      `SELECT c.*, u.full_name AS user_name, u.avatar AS user_avatar
+       FROM team_chats c
+       JOIN users u ON u.id = c.user_id
+       WHERE c.project_id = $1
+       ORDER BY c.created_at ASC`,
+      [projId]
+    );
+    res.json(result.rows.map(r => ({
+      id: String(r.id), projectId: String(r.project_id),
+      userId: String(r.user_id), userName: r.user_name, userAvatar: r.user_avatar,
+      message: r.message, createdAt: r.created_at
+    })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Không thể tải tin nhắn.' });
+  }
+});
+
+/* POST /api/projects/:id/chat */
+router.post('/:id/chat', requireAuth, async (req, res) => {
+  try {
+    const projId = req.params.id;
+    const { message } = req.body;
+    if (!message || !message.trim()) return res.status(400).json({ error: 'Tin nhắn rỗng.' });
+
+    // Check membership
+    const member = await pool.query(
+      'SELECT 1 FROM team_members WHERE project_id=$1 AND user_id=$2 UNION SELECT 1 FROM projects WHERE id=$1 AND leader_id=$2',
+      [projId, req.user.id]
+    );
+    if (!member.rows.length) return res.status(403).json({ error: 'Chỉ thành viên mới gửi được chat.' });
+
+    // Insert new message
+    const inserted = await pool.query(
+      'INSERT INTO team_chats (project_id, user_id, message) VALUES ($1,$2,$3) RETURNING *',
+      [projId, req.user.id, message.trim()]
+    );
+    
+    // Prune old messages (keep only last 50)
+    await pool.query(
+      `DELETE FROM team_chats WHERE project_id = $1 AND id NOT IN (
+         SELECT id FROM team_chats WHERE project_id = $1 ORDER BY created_at DESC LIMIT 50
+       )`,
+      [projId]
+    );
+
+    const c = inserted.rows[0];
+    res.status(201).json({
+      id: String(c.id), projectId: String(c.project_id),
+      userId: String(c.user_id), userName: req.user.fullName, userAvatar: req.user.avatar,
+      message: c.message, createdAt: c.created_at
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Gửi tin nhắn thất bại.' });
   }
 });
 

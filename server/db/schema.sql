@@ -140,6 +140,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   title      VARCHAR(255),
   message    TEXT,
   type       VARCHAR(20) DEFAULT 'info',
+  target_id  INTEGER,
   read       BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT NOW()
 );
@@ -167,3 +168,12 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, read
 
 -- Migration commands (safe to run multiple times)
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]';
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS target_id INTEGER;
+
+CREATE TABLE IF NOT EXISTS team_chats (
+  id         SERIAL PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  message    TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);

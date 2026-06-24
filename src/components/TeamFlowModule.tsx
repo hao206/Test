@@ -13,6 +13,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useAuditStore } from '../store/useAuditStore';
 import { useToastStore } from '../store/useToastStore';
 import { useNotificationStore } from '../store/useNotificationStore';
+import { useChatStore } from '../store/useChatStore';
 
 // @dnd-kit core imports
 import { DndContext, useDraggable, useDroppable, DragEndEvent } from '@dnd-kit/core';
@@ -180,7 +181,12 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
   const fetchTasks = useTaskStore((state) => state.fetchTasks);
   const fetchMyProjects = useProjectStore((state) => state.fetchMyProjects);
 
+  const { messages, fetchMessages, sendMessage } = useChatStore();
+
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [showChat, setShowChat] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const chatMessagesEndRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchMyProjects().then(() => {
@@ -200,9 +206,22 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
     if (!activeProjectId) return;
     const interval = setInterval(() => {
       fetchTasks(activeProjectId);
+      if (showChat) fetchMessages(activeProjectId);
     }, 15000);
     return () => clearInterval(interval);
-  }, [activeProjectId]);
+  }, [activeProjectId, showChat]);
+
+  useEffect(() => {
+    if (activeProjectId && showChat) {
+      fetchMessages(activeProjectId);
+    }
+  }, [activeProjectId, showChat]);
+
+  useEffect(() => {
+    if (chatMessagesEndRef.current) {
+      chatMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, showChat]);
   const user = useAuthStore((state) => state.user);
   const addLog = useAuditStore((state) => state.addLog);
   const addToast = useToastStore((state) => state.addToast);
@@ -366,10 +385,10 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
           <div className="lg:col-span-2 bg-surface border border-border-dim rounded-[32px] p-6 relative overflow-hidden flex flex-col justify-between">
             <div className="space-y-2 relative z-10">
               <div className="flex items-center gap-2">
-                <Badge variant="info">{lang === 'en' ? 'Active Sprint Tracker' : 'Theo dõi Sprint Hoạt động'}</Badge>
-                <span className="text-[10px] text-text-muted font-mono">{lang === 'en' ? 'End Date: June 20, 2026' : 'Hạn sprint: 20 Tháng 6, 2026'}</span>
+                <Badge variant="info">{lang === 'en' ? 'Team Workspace' : 'Không gian làm việc nhóm'}</Badge>
+                <span className="text-[10px] text-text-muted font-mono">{lang === 'en' ? 'Isolated Environment' : 'Môi trường biệt lập'}</span>
               </div>
-              <h3 className="text-xl font-bold text-text-primary font-display">{t.appName} {lang === 'en' ? 'Sprint Progress' : 'Tiến độ Sprint'}</h3>
+              <h3 className="text-xl font-bold text-text-primary font-display">{t.appName} {lang === 'en' ? 'TeamFlow' : 'TeamFlow'}</h3>
               <p className="text-text-secondary text-xs">{lang === 'en' ? 'Tracking graduation team contribution goals across Agile sprints milestones.' : 'Theo dõi mục tiêu đóng góp của nhóm khoa học qua các cột mốc Agile sprint.'}</p>
             </div>
 
@@ -395,18 +414,38 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
               <p className="text-[11px] text-text-muted">{lang === 'en' ? 'Fast tracking utility tools designed to assign cards instantly.' : 'Các công cụ tiện ích giúp phân công thẻ công việc nhanh chóng.'}</p>
             </div>
             
-            <Button 
-              onClick={() => {
-                if (activeUserRole === 'Guest') {
-                  setShowGuestBlockModal(true);
-                } else {
-                  setShowAddTask(true);
-                }
-              }}
-              className="w-full mt-4"
-            >
-              <Plus className="w-4 h-4 mr-1" /> {t.btnAddTask}
-            </Button>
+            <div className="space-y-3">
+              <Button 
+                onClick={() => {
+                  if (activeUserRole === 'Guest') {
+                    setShowGuestBlockModal(true);
+                  } else {
+                    setShowAddTask(true);
+                  }
+                }}
+                className="w-full"
+              >
+                <Plus className="w-4 h-4 mr-1" /> {t.btnAddTask}
+              </Button>
+              
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  if (activeUserRole === 'Guest') {
+                    setShowGuestBlockModal(true);
+                  } else {
+                    setShowChat(!showChat);
+                  }
+                }}
+                className="w-full flex justify-between items-center bg-surface hover:bg-surface-hover border-border-dim"
+              >
+                <div className="flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-secondary"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                  <span>{lang === 'en' ? 'Team Chat' : 'Chat Nhóm'}</span>
+                </div>
+                {messages.length > 0 && <Badge variant="default" className="text-[10px] py-0">{messages.length}</Badge>}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -577,6 +616,83 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
                   {t.backToGuestBtn}
                 </Button>
               </div>
+            </div>
+          </div>
+        )}
+        {/* Chat Drawer */}
+        {showChat && (
+          <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-background border-l border-border-active shadow-2xl z-[90] flex flex-col animate-slide-left font-sans">
+            <div className="flex items-center justify-between p-4 border-b border-border-dim bg-surface">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-accent-primary/10 flex items-center justify-center text-accent-primary">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                </div>
+                <div>
+                  <h3 className="font-bold text-text-primary text-sm">{lang === 'en' ? 'Team Chat' : 'Chat Nhóm'}</h3>
+                  <p className="text-[10px] text-text-secondary">{lang === 'en' ? 'Project isolated environment' : 'Môi trường dự án biệt lập'}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowChat(false)} className="p-2 text-text-muted hover:text-text-primary rounded-full hover:bg-surface-hover transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-background">
+              {messages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-text-muted space-y-2 opacity-50">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></svg>
+                  <p className="text-xs">{lang === 'en' ? 'No messages yet.' : 'Chưa có tin nhắn nào.'}</p>
+                </div>
+              ) : (
+                messages.map((msg, idx) => {
+                  const isMe = msg.userId === user?.id;
+                  const showAvatar = idx === 0 || messages[idx-1].userId !== msg.userId;
+                  return (
+                    <div key={msg.id} className={`flex gap-2 max-w-[85%] ${isMe ? 'ml-auto flex-row-reverse' : ''}`}>
+                      {!isMe && showAvatar ? (
+                        <Avatar src={msg.userAvatar} className="w-6 h-6 shrink-0 mt-1" />
+                      ) : !isMe ? (
+                        <div className="w-6 h-6 shrink-0" />
+                      ) : null}
+                      <div className={`space-y-1 ${isMe ? 'items-end' : 'items-start'} flex flex-col`}>
+                        {!isMe && showAvatar && <span className="text-[9px] font-bold text-text-muted px-1">{msg.userName}</span>}
+                        <div className={`px-3 py-2 rounded-2xl text-xs break-words ${isMe ? 'bg-accent-primary text-black rounded-tr-sm' : 'bg-surface border border-border-dim text-text-primary rounded-tl-sm'}`}>
+                          {msg.message}
+                        </div>
+                        <span className="text-[8px] text-text-muted px-1">{new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={chatMessagesEndRef} />
+            </div>
+
+            <div className="p-3 bg-surface border-t border-border-dim">
+              <form 
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!chatInput.trim() || !activeProjectId) return;
+                  try {
+                    await sendMessage(activeProjectId, chatInput);
+                    setChatInput('');
+                  } catch (err) {
+                    addToast('Send failed', 'error');
+                  }
+                }}
+                className="flex items-center gap-2"
+              >
+                <input 
+                  type="text" 
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder={lang === 'en' ? 'Type a message...' : 'Nhập tin nhắn...'}
+                  className="flex-1 bg-background border border-border-dim rounded-full px-4 py-2 text-xs focus:outline-none focus:border-accent-primary text-text-primary"
+                />
+                <button type="submit" disabled={!chatInput.trim()} className="p-2 bg-accent-primary text-black rounded-full disabled:opacity-50 transition-opacity">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                </button>
+              </form>
             </div>
           </div>
         )}

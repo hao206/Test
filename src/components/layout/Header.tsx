@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Menu, Bell } from 'lucide-react';
+import { Menu, Bell, X } from 'lucide-react';
 import { useUIStore } from '../../store/useUIStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNotificationStore } from '../../store/useNotificationStore';
+import { useProjectStore } from '../../store/useProjectStore';
 import { translations } from '../../translations';
 import { GlobalSearch } from '../GlobalSearch';
 
@@ -13,9 +14,10 @@ export const Header: React.FC = () => {
   const { lang, setLang, accent, setMobileMenuOpen } = useUIStore();
   const t = translations[lang];
   const user = useAuthStore((s) => s.user);
+  const setSelectedProjectId = useProjectStore((s) => s.setSelectedProjectId);
 
   // Notifications Store
-  const { notifications, fetchNotifications, markAsRead, markAllAsRead, clearAll } = useNotificationStore();
+  const { notifications, fetchNotifications, markAsRead, markAllAsRead, clearAll, deleteNotification } = useNotificationStore();
   
   React.useEffect(() => {
     if (user && user.role !== 'Guest') {
@@ -93,10 +95,13 @@ export const Header: React.FC = () => {
                       key={notif.id} 
                       onClick={() => {
                         markAsRead(notif.id);
+                        if (notif.targetId) setSelectedProjectId(notif.targetId);
+                        
                         if (notif.type === 'task') navigate('/teamflow');
-                        if (notif.type === 'apply') navigate('/projects');
+                        if (notif.type === 'apply' || notif.type === 'success') navigate('/projects');
                         if (notif.type === 'comment') navigate('/community');
-                        if (notif.type === 'badge') navigate('/achievements');
+                        if (notif.type === 'badge') navigate('/leaderboard');
+                        if (notif.type === 'admin') navigate('/admin');
                         setShowNotificationDrawer(false);
                       }}
                       className={`p-4 rounded-2xl flex flex-col space-y-1.5 transition cursor-pointer border ${
@@ -106,8 +111,20 @@ export const Header: React.FC = () => {
                       }`}
                     >
                       <div className="flex items-center justify-between text-xs">
-                        <span className={`${notif.read ? 'text-text-secondary' : 'text-text-primary'} font-bold`}>{notif.title}</span>
-                        {!notif.read && <span className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: accent }} />}
+                        <span className={`${notif.read ? 'text-text-secondary' : 'text-text-primary'} font-bold pr-2`}>{notif.title}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {!notif.read && <span className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: accent }} />}
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteNotification(notif.id);
+                            }}
+                            className="text-text-muted hover:text-red-500 transition-colors p-1"
+                            title={lang === 'en' ? 'Delete' : 'Xóa'}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                       <p className="text-[11px] text-text-muted leading-relaxed font-sans break-words whitespace-pre-wrap">{notif.description}</p>
                       <span className="text-[9px] text-text-muted font-mono mt-2 inline-block bg-background px-2 py-0.5 rounded border border-border-dim">{notif.time}</span>

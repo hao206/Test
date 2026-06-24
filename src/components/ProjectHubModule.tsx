@@ -28,6 +28,8 @@ export const ProjectHubModule: React.FC<ProjectHubProps> = ({
   const fetchProjects = useProjectStore((s) => s.fetchProjects);
   const applyProject = useProjectStore((s) => s.applyToProject);
   const finalizeTeam = useProjectStore((s) => s.finalizeTeam);
+  const selectedProjectId = useProjectStore((s) => s.selectedProjectId);
+  const setSelectedProjectId = useProjectStore((s) => s.setSelectedProjectId);
 
   useEffect(() => {
     fetchProjects();
@@ -36,6 +38,19 @@ export const ProjectHubModule: React.FC<ProjectHubProps> = ({
     }, 15000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (selectedProjectId && projects.length > 0) {
+      const p = projects.find(x => x.id === selectedProjectId);
+      if (p) {
+        if (p.leaderId === user?.id) {
+          openManageApplications(p.id);
+        }
+        // After handling, clear it
+        setSelectedProjectId(null);
+      }
+    }
+  }, [selectedProjectId, projects, user]);
 
   const addLog = useAuditStore((s) => s.addLog);
   const addToast = useToastStore((s) => s.addToast);

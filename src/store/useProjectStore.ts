@@ -6,6 +6,8 @@ interface ProjectState {
   projects: Project[];
   loading: boolean;
   error: string | null;
+  selectedProjectId: string | null;
+  setSelectedProjectId: (id: string | null) => void;
   fetchProjects: (params?: Record<string, string>) => Promise<void>;
   fetchMyProjects: () => Promise<void>;
   createProject: (data: Partial<Project>) => Promise<Project>;
@@ -22,6 +24,9 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   projects: [],
   loading: false,
   error: null,
+  selectedProjectId: null,
+
+  setSelectedProjectId: (id) => set({ selectedProjectId: id }),
 
   fetchProjects: async (params = {}) => {
     set({ loading: true, error: null });
