@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Flame, ArrowRight, ArrowLeft, CheckCircle2, Plus
+  Flame, ArrowRight, ArrowLeft, CheckCircle2, Plus, Bell, Image, FileText, Calendar, User, Paperclip, Trash2, X, MessageSquare, Users, Check
 } from 'lucide-react';
 import { Task, TaskStatus } from '../types';
 import { translations } from '../translations';
@@ -28,18 +28,22 @@ interface DraggableCardProps {
   task: Task;
   accentColor: string;
   lang: string;
+  handlePrevStatus: (id: string, st: TaskStatus) => void;
   handleNextStatus: (id: string, st: TaskStatus) => void;
   handleDeleteTask: (id: string) => void;
   colValue: TaskStatus;
+  onCardClick: (task: Task) => void;
 }
 
 const DraggableTaskCard: React.FC<DraggableCardProps> = ({
   task,
   accentColor,
   lang,
+  handlePrevStatus,
   handleNextStatus,
   handleDeleteTask,
-  colValue
+  colValue,
+  onCardClick
 }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
@@ -48,7 +52,7 @@ const DraggableTaskCard: React.FC<DraggableCardProps> = ({
   const style: React.CSSProperties = {
     transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     opacity: isDragging ? 0.5 : 1,
-    cursor: isDragging ? 'grabbing' : 'grab',
+    cursor: isDragging ? 'grabbing' : 'pointer',
     touchAction: 'none',
   };
 
@@ -58,7 +62,8 @@ const DraggableTaskCard: React.FC<DraggableCardProps> = ({
       style={style}
       {...attributes}
       {...listeners}
-      className="bg-surface border border-border-dim rounded-xl p-3 space-y-2 hover:border-border-active transition-all shadow-sm group select-none relative"
+      onClick={() => onCardClick(task)}
+      className="bg-surface border border-border-dim rounded-xl p-3 space-y-2 hover:border-border-active transition-all shadow-sm group select-none relative cursor-pointer"
     >
       <div className="flex justify-between items-start gap-2">
         <Badge variant="default" className="text-[8px] bg-background border-border-dim px-1.5 truncate max-w-[150px]">{task.projectName}</Badge>
@@ -82,6 +87,26 @@ const DraggableTaskCard: React.FC<DraggableCardProps> = ({
       <h4 className="text-xs font-bold text-text-primary leading-tight group-hover:text-accent-primary transition-colors line-clamp-2">
         {task.title}
       </h4>
+
+      {(task.notes || (task.attachments && task.attachments.length > 0) || task.reminderDate) && (
+        <div className="flex items-center gap-2 pt-1 text-[9px] text-text-muted">
+          {task.notes && (
+            <span className="flex items-center gap-0.5 text-text-secondary" title="Has notes">
+              <FileText className="w-2.5 h-2.5" /> Note
+            </span>
+          )}
+          {task.attachments && task.attachments.length > 0 && (
+            <span className="flex items-center gap-0.5 text-text-secondary" title="Attachments">
+              <Paperclip className="w-2.5 h-2.5" /> {task.attachments.length}
+            </span>
+          )}
+          {task.reminderDate && (
+            <span className="flex items-center gap-0.5 text-amber-400 font-bold" title={`Reminder: ${task.reminderDate}`}>
+              <Bell className="w-2.5 h-2.5 animate-bounce" /> {task.reminderDate}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center justify-between pt-1">
         <span className="text-[9px] text-text-muted font-mono flex items-center gap-1">
@@ -228,6 +253,7 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
   const addNotification = useNotificationStore((state) => state.addNotification);
 
   const addTask = useTaskStore((state) => state.addTask);
+  const updateTask = useTaskStore((state) => state.updateTask);
   const updateTaskStatus = useTaskStore((state) => state.updateTaskStatus);
   const deleteTask = useTaskStore((state) => state.deleteTask);
   const addReputation = useAuthStore((state) => state.addReputation);
@@ -242,6 +268,46 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
   const [taskAssigned, setTaskAssigned] = useState('Alex Nguyen');
   const [taskDueDate, setTaskDueDate] = useState('2026-06-25');
   const [selectedProjectId, setSelectedProjectId] = useState('');
+
+  // Focalboard Task Detail state
+  const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<Task | null>(null);
+  const [detailNotes, setDetailNotes] = useState('');
+  const [detailReminder, setDetailReminder] = useState('');
+  const [detailNewAttachmentUrl, setDetailNewAttachmentUrl] = useState('');
+  const [detailNewAttachmentName, setDetailNewAttachmentName] = useState('');
+
+  useEffect(() => {
+    if (selectedTaskForDetail) {
+      setDetailNotes(selectedTaskForDetail.notes || '');
+      setDetailReminder(selectedTaskForDetail.reminderDate || '');
+      setDetailNewAttachmentUrl('');
+      setDetailNewAttachmentName('');
+    }
+  }, [selectedTaskForDetail]);
+
+  const { participatedProjects, activeParticipatedCount } = React.useMemo(() => {
+    if (!projects || projects.length === 0) return { participatedProjects: [], activeParticipatedCount: 0 };
+    const myName = user?.fullName || '';
+    const myId = user?.id || '';
+    
+    let filtered = projects;
+    if (activeUserRole !== 'Admin' && activeUserRole !== 'Super Admin' && activeUserRole !== 'Moderator') {
+      const myProjs = projects.filter(p => p.leaderId === myId || p.leaderName === myName || (p.members && p.members.includes(myName)));
+      if (myProjs.length > 0) filtered = myProjs;
+    }
+    
+    const activeCount = filtered.filter(p => p.status !== 'Completed' && p.status !== 'Archived').length;
+    return { participatedProjects: filtered, activeParticipatedCount: activeCount };
+  }, [projects, user, activeUserRole]);
+
+  const activeProject = projects.find(p => p.id === activeProjectId) || projects[0];
+
+  const handleSelectProject = (projId: string) => {
+    setActiveProjectId(projId);
+    setSelectedProjectId(projId);
+    fetchTasks(projId);
+    fetchMessages(projId);
+  };
 
   const columns: { label: string; value: TaskStatus; color: string }[] = [
     { label: lang === 'en' ? 'Backlog' : 'Tồn đọng', value: 'Backlog', color: '#ff007f' },
@@ -380,42 +446,80 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
   return (
     <DndContext onDragEnd={handleDragEnd}>
       <div className="p-1 md:p-4 space-y-6">
-        {/* Metrics and Burn Down Dashboard */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-surface border border-border-dim rounded-[32px] p-6 relative overflow-hidden flex flex-col justify-between">
-            <div className="space-y-2 relative z-10">
+        {/* Unified Sleek TeamFlow Header */}
+        <div className="bg-surface border border-border-dim rounded-[24px] p-4 space-y-4 shadow-sm">
+          {/* Top row: Switcher Tabs & Quick Controls */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-hide">
+              <div className="flex items-center gap-1.5 shrink-0 bg-background px-3 py-1.5 rounded-xl border border-border-dim">
+                <Users className="w-4 h-4 text-accent-primary" />
+                <span className="text-xs font-bold text-text-primary">
+                  {lang === 'en' ? 'My Projects' : 'Dự án tham gia'}:
+                </span>
+                <Badge variant={activeParticipatedCount >= 3 ? 'warning' : 'info'} className="text-[10px] py-0 px-1.5 font-mono">
+                  {activeParticipatedCount}/3 {lang === 'en' ? 'Active' : 'Đang làm'}
+                </Badge>
+              </div>
+
               <div className="flex items-center gap-2">
-                <Badge variant="info">{lang === 'en' ? 'Team Workspace' : 'Không gian làm việc nhóm'}</Badge>
-                <span className="text-[10px] text-text-muted font-mono">{lang === 'en' ? 'Isolated Environment' : 'Môi trường biệt lập'}</span>
+                {participatedProjects.map(proj => {
+                  const isActive = proj.id === activeProjectId;
+                  return (
+                    <button
+                      key={proj.id}
+                      onClick={() => handleSelectProject(proj.id)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 cursor-pointer ${
+                        isActive 
+                          ? 'text-black shadow-[0_0_15px_rgba(204,255,0,0.3)] font-black' 
+                          : 'bg-background hover:bg-surface-hover text-text-secondary border border-border-dim'
+                      }`}
+                      style={isActive ? { backgroundColor: accentColor } : {}}
+                    >
+                      <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-black animate-pulse' : 'bg-text-muted'}`} />
+                      <span>{proj.name}</span>
+                      <Badge variant={isActive ? 'default' : 'outline'} className={`text-[9px] py-0 px-1 ${isActive ? 'bg-black/20 text-black border-transparent' : 'text-text-muted'}`}>
+                        {proj.status === 'Completed' ? '✔' : proj.status}
+                      </Badge>
+                    </button>
+                  );
+                })}
               </div>
-              <h3 className="text-xl font-bold text-text-primary font-display">{t.appName} {lang === 'en' ? 'TeamFlow' : 'TeamFlow'}</h3>
-              <p className="text-text-secondary text-xs">{lang === 'en' ? 'Tracking graduation team contribution goals across Agile sprints milestones.' : 'Theo dõi mục tiêu đóng góp của nhóm khoa học qua các cột mốc Agile sprint.'}</p>
             </div>
 
-            <div className="space-y-3 mt-6 lg:mt-0 relative z-10">
-              <div className="flex justify-between items-center text-xs text-text-secondary">
-                <span className="flex items-center gap-1"><Flame className="w-3.5 h-3.5 text-yellow-500" /> {t.tfBurnLabel}</span>
-                <span className="font-bold text-text-primary">{sprintBurnProgress}% Done ({completedTasks}/{totalTasks} tasks)</span>
-              </div>
-              <div className="w-full bg-background h-2 rounded-full overflow-hidden border border-border-dim">
-                <div 
-                  className="h-full rounded-full transition-all duration-700 shadow-[0_0_15px_rgba(204,255,0,0.5)]"
-                  style={{ width: `${sprintBurnProgress}%`, backgroundColor: accentColor }}
-                />
-              </div>
-            </div>
-            <div className="absolute -right-12 -bottom-10 w-48 h-48 blur-[80px] opacity-10 rounded-full" style={{ backgroundColor: accentColor }}></div>
-          </div>
+            {/* Actions right bar */}
+            <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
+              {activeProject && (
+                <div className="flex items-center -space-x-2 overflow-hidden mr-1">
+                  {(activeProject.members || ['Alex Nguyen', 'Linh Dang', 'Minh Hoang']).slice(0, 4).map((m, idx) => (
+                    <div key={idx} className="inline-block h-7 w-7 rounded-full ring-2 ring-surface bg-surface-hover border border-border-dim flex items-center justify-center text-[10px] font-bold text-text-primary shadow-sm" title={m}>
+                      {m.charAt(0).toUpperCase()}
+                    </div>
+                  ))}
+                </div>
+              )}
 
-          {/* Quick controls panel */}
-          <div className="bg-surface border border-border-dim rounded-[32px] p-6 flex flex-col justify-between">
-            <div className="space-y-1">
-              <h4 className="text-xs text-text-secondary uppercase font-bold tracking-wider font-mono">{lang === 'en' ? 'Agile Action Board' : 'Bảng Hoạt Động Agile'}</h4>
-              <p className="text-[11px] text-text-muted">{lang === 'en' ? 'Fast tracking utility tools designed to assign cards instantly.' : 'Các công cụ tiện ích giúp phân công thẻ công việc nhanh chóng.'}</p>
-            </div>
-            
-            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  if (!activeProject) return;
+                  addNotification(
+                    lang === 'en' ? `⚠️ Reminder: ${activeProject.name}` : `⚠️ Nhắc nhở: ${activeProject.name}`,
+                    lang === 'en' 
+                      ? `Reminder broadcasted to all members of "${activeProject.name}" to check Kanban workflow!`
+                      : `Thông báo nhắc nhở tiến độ đã gửi đến các thành viên trong dự án "${activeProject.name}"!`,
+                    'task'
+                  );
+                  addToast(lang === 'en' ? 'Progress reminder broadcasted to team!' : 'Đã gửi thông báo nhắc nhở thành viên!', 'success');
+                  addLog(`Broadcasted reminder for ${activeProject.name}`, 'TeamFlow Pro', user?.fullName || 'Leader');
+                }}
+                className="px-3 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title={lang === 'en' ? 'Send reminder to project team' : 'Gửi nhắc nhở tiến độ cho nhóm'}
+              >
+                <Bell className="w-3.5 h-3.5 animate-bounce" />
+                <span className="hidden sm:inline">{lang === 'en' ? 'Reminder' : 'Nhắc nhở'}</span>
+              </button>
+
               <Button 
+                size="sm"
                 onClick={() => {
                   if (activeUserRole === 'Guest') {
                     setShowGuestBlockModal(true);
@@ -423,13 +527,14 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
                     setShowAddTask(true);
                   }
                 }}
-                className="w-full"
+                className="text-xs py-1.5 px-3 h-auto"
               >
-                <Plus className="w-4 h-4 mr-1" /> {t.btnAddTask}
+                <Plus className="w-3.5 h-3.5 mr-1" /> {lang === 'en' ? 'New Task' : 'Thêm thẻ'}
               </Button>
               
               <Button 
-                variant="outline"
+                variant={showChat ? 'default' : 'outline'}
+                size="sm"
                 onClick={() => {
                   if (activeUserRole === 'Guest') {
                     setShowGuestBlockModal(true);
@@ -437,16 +542,38 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
                     setShowChat(!showChat);
                   }
                 }}
-                className="w-full flex justify-between items-center bg-surface hover:bg-surface-hover border-border-dim"
+                className={`text-xs py-1.5 px-3 h-auto flex items-center gap-1.5 ${showChat ? 'bg-accent-primary text-black font-bold' : 'bg-background hover:bg-surface-hover'}`}
               >
-                <div className="flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-secondary"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
-                  <span>{lang === 'en' ? 'Team Chat' : 'Chat Nhóm'}</span>
-                </div>
-                {messages.length > 0 && <Badge variant="default" className="text-[10px] py-0">{messages.length}</Badge>}
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>{lang === 'en' ? 'Chat' : 'Chat Nhóm'}</span>
+                {messages.length > 0 && <Badge variant="default" className={`text-[9px] py-0 px-1 ml-0.5 ${showChat ? 'bg-black text-white' : ''}`}>{messages.length}</Badge>}
               </Button>
             </div>
           </div>
+
+          {/* Bottom row: Compact Project Info & Sprint Progress Bar */}
+          {activeProject && (
+            <div className="pt-3 border-t border-border-dim/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2 text-text-secondary truncate">
+                <Badge variant="info" className="text-[9px] shrink-0">{activeProject.category || 'Agile Flow'}</Badge>
+                <span className="font-bold text-text-primary truncate">{activeProject.name}</span>
+                <span className="text-text-muted hidden md:inline">— {activeProject.description || 'Quản lý tiến độ biệt lập'}</span>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="flex items-center gap-1 text-[11px] text-text-secondary">
+                  <Flame className="w-3.5 h-3.5 text-yellow-500" />
+                  {lang === 'en' ? 'Sprint Burn:' : 'Tiến độ Sprint:'} <strong className="text-text-primary font-mono">{sprintBurnProgress}%</strong> ({completedTasks}/{totalTasks})
+                </span>
+                <div className="w-28 sm:w-36 bg-background h-2 rounded-full overflow-hidden border border-border-dim">
+                  <div 
+                    className="h-full rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(204,255,0,0.5)]"
+                    style={{ width: `${sprintBurnProgress}%`, backgroundColor: accentColor }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Kanban Board Container - Focalboard style horizontal scroll */}
@@ -479,6 +606,7 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
                       handleNextStatus={handleNextStatus}
                       handleDeleteTask={handleDeleteTask}
                       colValue={col.value}
+                      onCardClick={(t) => setSelectedTaskForDetail(t)}
                     />
                   ))}
 
@@ -675,6 +803,11 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
                   if (!chatInput.trim() || !activeProjectId) return;
                   try {
                     await sendMessage(activeProjectId, chatInput);
+                    addNotification(
+                      lang === 'en' ? `💬 [${activeProject?.name || 'Chat'}] New Message` : `💬 [${activeProject?.name || 'Chat'}] Tin nhắn mới`,
+                      `${user?.fullName || 'Thành viên'}: "${chatInput.slice(0, 40)}${chatInput.length > 40 ? '...' : ''}"`,
+                      'task'
+                    );
                     setChatInput('');
                   } catch (err) {
                     addToast('Send failed', 'error');
@@ -693,6 +826,280 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
                 </button>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Focalboard Card Inspector Modal */}
+        {selectedTaskForDetail && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-fade-in font-sans">
+            <div className="w-full max-w-2xl bg-surface border border-border-active rounded-3xl p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-border-dim pb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-accent-primary/10 border border-accent-primary/30 flex items-center justify-center text-accent-primary">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 bg-background border border-border-dim rounded-md text-text-muted">
+                        {selectedTaskForDetail.projectName}
+                      </span>
+                      <Badge variant="info" className="text-[9px]">Focalboard Card</Badge>
+                    </div>
+                    <h3 className="text-lg font-black text-text-primary font-display mt-0.5">
+                      {selectedTaskForDetail.title}
+                    </h3>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedTaskForDetail(null)} 
+                  className="p-2 text-text-muted hover:text-white rounded-full hover:bg-surface-hover transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Properties Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-background/50 p-4 rounded-2xl border border-border-dim text-xs">
+                <div>
+                  <span className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">Status</span>
+                  <Badge variant="default" className="font-bold">{selectedTaskForDetail.status}</Badge>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">Priority</span>
+                  <span className={`font-bold ${
+                    selectedTaskForDetail.priority === 'High' ? 'text-red-400' :
+                    selectedTaskForDetail.priority === 'Medium' ? 'text-amber-400' : 'text-blue-400'
+                  }`}>
+                    {selectedTaskForDetail.priority || 'Medium'}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">Due Date</span>
+                  <span className="font-mono text-text-primary">{selectedTaskForDetail.dueDate || 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">Assignee</span>
+                  <span className="text-text-primary font-medium">{selectedTaskForDetail.assignedTo || 'Unassigned'}</span>
+                </div>
+              </div>
+
+              {/* Reminder Section */}
+              <div className="space-y-2">
+                <label className="flex items-center justify-between text-xs font-bold text-text-primary">
+                  <span className="flex items-center gap-1.5 text-amber-400">
+                    <Bell className="w-4 h-4" />
+                    {lang === 'en' ? 'Task Reminder Notification' : 'Lịch nhắc nhở công việc'}
+                  </span>
+                  {detailReminder && (
+                    <button onClick={() => setDetailReminder('')} className="text-[10px] text-red-400 hover:underline">
+                      {lang === 'en' ? 'Clear' : 'Xóa lời nhắc'}
+                    </button>
+                  )}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="datetime-local"
+                    value={detailReminder}
+                    onChange={(e) => setDetailReminder(e.target.value)}
+                    className="flex-1 bg-background border border-border-dim rounded-xl px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent-primary font-mono cursor-pointer"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 16);
+                      setDetailReminder(tomorrow);
+                      addToast(lang === 'en' ? 'Set reminder for tomorrow!' : 'Đã đặt nhắc nhở vào ngày mai!', 'info');
+                    }}
+                    className="text-xs shrink-0"
+                  >
+                    +24h
+                  </Button>
+                </div>
+              </div>
+
+              {/* Markdown / Notes Section */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-text-primary flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-accent-primary" />
+                  {lang === 'en' ? 'Focalboard Notes & Acceptance Criteria' : 'Ghi chú & Tiêu chí hoàn thành (Focalboard Note)'}
+                </label>
+                <textarea
+                  value={detailNotes}
+                  onChange={(e) => setDetailNotes(e.target.value)}
+                  rows={4}
+                  placeholder={lang === 'en' ? 'Write detailed specification, checklists, or markdown notes...' : 'Viết chi tiết đầu ra, danh sách công việc nhỏ hoặc ghi chú...'}
+                  className="w-full bg-background border border-border-dim rounded-xl p-3 text-xs text-text-primary focus:outline-none focus:border-accent-primary transition placeholder-text-muted leading-relaxed font-mono"
+                />
+              </div>
+
+              {/* Attachments & Images Section */}
+              <div className="space-y-3">
+                <label className="block text-xs font-bold text-text-primary flex items-center gap-1.5">
+                  <Paperclip className="w-4 h-4 text-emerald-400" />
+                  {lang === 'en' ? 'Attached Files & Images' : 'Tệp tin & Hình ảnh đính kèm'}
+                </label>
+
+                {/* List of existing attachments */}
+                {selectedTaskForDetail.attachments && selectedTaskForDetail.attachments.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {selectedTaskForDetail.attachments.map((att) => (
+                      <div key={att.id} className="bg-background border border-border-dim rounded-xl p-2.5 flex items-center justify-between gap-3 group relative overflow-hidden">
+                        <div className="flex items-center gap-2.5 truncate">
+                          {att.type === 'image' ? (
+                            <img src={att.url} alt={att.name} className="w-10 h-10 rounded-lg object-cover bg-surface shrink-0 border border-border-dim" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-surface flex items-center justify-center text-text-secondary shrink-0 border border-border-dim font-bold text-[10px]">
+                              FILE
+                            </div>
+                          )}
+                          <div className="truncate">
+                            <a href={att.url} target="_blank" rel="noreferrer" className="text-xs font-bold text-text-primary hover:text-accent-primary transition truncate block">
+                              {att.name}
+                            </a>
+                            <span className="text-[9px] text-text-muted uppercase font-mono">{att.type}</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const remaining = (selectedTaskForDetail.attachments || []).filter(a => a.id !== att.id);
+                            const upd = { ...selectedTaskForDetail, attachments: remaining };
+                            setSelectedTaskForDetail(upd);
+                            updateTask(selectedTaskForDetail.id, { attachments: remaining });
+                            addToast('Removed attachment', 'info');
+                          }}
+                          className="text-text-muted hover:text-red-500 p-1.5 rounded-lg hover:bg-surface-hover transition cursor-pointer shrink-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-6 border border-dashed border-border-dim rounded-xl text-center text-text-muted text-xs">
+                    {lang === 'en' ? 'No attachments yet.' : 'Chưa có tệp hay hình ảnh nào.'}
+                  </div>
+                )}
+
+                {/* Add new attachment inputs */}
+                <div className="bg-background p-3 rounded-xl border border-border-dim space-y-2.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary block">
+                    {lang === 'en' ? '+ Attach Image URL or Document' : '+ Đính kèm hình ảnh hoặc URL tài liệu'}
+                  </span>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      placeholder={lang === 'en' ? 'File Name (e.g. Architecture Diagram)' : 'Tên tệp (vd: Sơ đồ kiến trúc)'}
+                      value={detailNewAttachmentName}
+                      onChange={(e) => setDetailNewAttachmentName(e.target.value)}
+                      className="sm:w-1/3 bg-surface border border-border-dim rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none focus:border-accent-primary"
+                    />
+                    <input
+                      type="text"
+                      placeholder={lang === 'en' ? 'Image/File URL (https://...)' : 'URL Hình ảnh/Tệp tin (https://...)'}
+                      value={detailNewAttachmentUrl}
+                      onChange={(e) => setDetailNewAttachmentUrl(e.target.value)}
+                      className="flex-1 bg-surface border border-border-dim rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none focus:border-accent-primary font-mono"
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        if (!selectedTaskForDetail || !detailNewAttachmentUrl.trim()) return;
+                        const newAtt = {
+                          id: `att_${Date.now()}`,
+                          name: detailNewAttachmentName.trim() || 'Attachment',
+                          url: detailNewAttachmentUrl.trim(),
+                          type: (detailNewAttachmentUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || detailNewAttachmentUrl.includes('image')) ? 'image' : 'file'
+                        };
+                        const updatedAttachments = [...(selectedTaskForDetail.attachments || []), newAtt];
+                        const updatedTask = { ...selectedTaskForDetail, attachments: updatedAttachments };
+                        setSelectedTaskForDetail(updatedTask);
+                        updateTask(selectedTaskForDetail.id, { attachments: updatedAttachments });
+                        setDetailNewAttachmentUrl('');
+                        setDetailNewAttachmentName('');
+                        addToast(lang === 'en' ? 'Attachment added!' : 'Đã đính kèm tệp tin!', 'success');
+                        addNotification(
+                          lang === 'en' ? `📎 [${selectedTaskForDetail.projectName}] Attachment Added` : `📎 [${selectedTaskForDetail.projectName}] Tệp đính kèm mới`,
+                          `${user?.fullName || 'Thành viên'} đã đính kèm tệp "${newAtt.name}" vào công việc "${selectedTaskForDetail.title}".`,
+                          'task'
+                        );
+                      }}
+                      disabled={!detailNewAttachmentUrl.trim()}
+                      className="text-xs py-1.5 px-4 shrink-0"
+                    >
+                      {lang === 'en' ? 'Add' : 'Thêm'}
+                    </Button>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailNewAttachmentName('UI Design Preview');
+                        setDetailNewAttachmentUrl('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80');
+                      }}
+                      className="text-[10px] text-accent-primary hover:underline font-mono"
+                    >
+                      [+ Sample Image URL]
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailNewAttachmentName('Project Specification Doc');
+                        setDetailNewAttachmentUrl('https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf');
+                      }}
+                      className="text-[10px] text-emerald-400 hover:underline font-mono"
+                    >
+                      [+ Sample PDF URL]
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer Actions */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-border-dim">
+                <Button
+                  variant="ghost"
+                  onClick={() => setSelectedTaskForDetail(null)}
+                >
+                  {t.btnCancel}
+                </Button>
+                <Button
+                  onClick={async () => {
+                    if (!selectedTaskForDetail) return;
+                    try {
+                      await updateTask(selectedTaskForDetail.id, {
+                        notes: detailNotes,
+                        reminderDate: detailReminder,
+                        attachments: selectedTaskForDetail.attachments || [],
+                      });
+                      if (detailReminder) {
+                        addNotification(
+                          lang === 'en' ? '⏰ Reminder Saved' : '⏰ Đã lưu lịch nhắc nhở',
+                          `Reminder set for "${selectedTaskForDetail.title}" at ${detailReminder}.`,
+                          'task'
+                        );
+                      }
+                      if (detailNotes !== (selectedTaskForDetail.notes || '')) {
+                        addNotification(
+                          lang === 'en' ? `📝 [${selectedTaskForDetail.projectName}] Note Updated` : `📝 [${selectedTaskForDetail.projectName}] Cập nhật ghi chú`,
+                          `${user?.fullName || 'Thành viên'} đã cập nhật ghi chú cho công việc "${selectedTaskForDetail.title}".`,
+                          'task'
+                        );
+                      }
+                      addToast(lang === 'en' ? 'Task details updated!' : 'Đã cập nhật chi tiết công việc!', 'success');
+                      addLog(`Updated Focalboard details for card '${selectedTaskForDetail.title}'`, 'TeamFlow Pro', user?.fullName || '');
+                      setSelectedTaskForDetail(null);
+                    } catch (err) {
+                      addToast(lang === 'en' ? 'Failed to update task' : 'Cập nhật thất bại', 'error');
+                    }
+                  }}
+                >
+                  <Check className="w-4 h-4 mr-1.5" />
+                  {lang === 'en' ? 'Save Focalboard Card' : 'Lưu Chi Tiết Card'}
+                </Button>
+              </div>
             </div>
           </div>
         )}

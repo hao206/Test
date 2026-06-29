@@ -39,11 +39,12 @@ export interface Project {
   status: ProjectStatus;
   leaderId: string;
   leaderName: string;
-  members: string[];
+  members?: string[];
   visibility?: 'Public' | 'Private';
   reviewStatus?: ReviewStatus;
   hidden?: boolean;
   featured?: boolean;
+  myApplication?: any;
 }
 
 export type TaskStatus = 'Backlog' | 'To Do' | 'Doing' | 'Review' | 'Done';
@@ -60,17 +61,23 @@ export interface Task {
   assignedAvatar?: string;
   dueDate: string;
   commentsCount: number;
+  notes?: string;
+  attachments?: { id: string; name: string; url: string; type: string }[];
+  reminderDate?: string;
 }
 
 export interface Post {
   id: string;
   author: string;
+  authorName?: string;
   role: string;
+  authorRole?: string;
   avatar: string;
+  authorAvatar?: string;
   content: string;
   images: string[];
   likes: number;
-  comments: { author: string; content: string; time: string }[];
+  comments: { author: string; authorName?: string; content: string; time: string }[];
   loved?: boolean;
   topic: string;
   saved?: boolean;
@@ -90,6 +97,7 @@ export interface Resource {
   size: string;
   link: string;
   reviewStatus?: ReviewStatus;
+  fileType?: string;
 }
 
 export interface SkillExchangeOffer {

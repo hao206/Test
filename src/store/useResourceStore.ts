@@ -5,7 +5,7 @@ import { INITIAL_RESOURCES } from '../data';
 
 interface ResourceState {
   resources: Resource[];
-  addResource: (title: string, category: Resource['category'], size: string, sharedBy: string) => Resource;
+  addResource: (title: string, category: Resource['category'], size: string, sharedBy: string, fileType?: string, link?: string) => Resource;
   incrementDownloads: (resId: string) => void;
   updateResourceAdminState: (resId: string, updates: Pick<Partial<Resource>, 'reviewStatus' | 'category'>) => void;
   deleteResource: (resId: string) => void;
@@ -17,7 +17,7 @@ export const useResourceStore = create<ResourceState>()(
     (set) => ({
       resources: INITIAL_RESOURCES,
 
-      addResource: (title, category, size, sharedBy) => {
+      addResource: (title, category, size, sharedBy, fileType, link) => {
         const added: Resource = {
           id: `r_${Date.now()}`,
           title,
@@ -25,8 +25,9 @@ export const useResourceStore = create<ResourceState>()(
           sharedBy,
           downloads: 0,
           size,
-          link: '#',
+          link: link || '#',
           reviewStatus: 'Pending',
+          fileType: fileType || (title.toLowerCase().endsWith('.doc') || title.toLowerCase().endsWith('.docx') ? '.docx' : '.pdf'),
         };
         set((state) => ({ resources: [added, ...state.resources] }));
         return added;
