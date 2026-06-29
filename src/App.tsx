@@ -379,7 +379,7 @@ export default function App() {
   const refreshMe = useAuthStore((s) => s.refreshMe);
   const loginAsGuest = useAuthStore((s) => s.loginAsGuest);
   const addLog = useAuditStore((s) => s.addLog);
-  const { lang, accent } = useUIStore();
+  const { lang, setLang, accent } = useUIStore();
   const t = translations[lang];
 
   // On mount: refresh user from API if token exists (handles page reload)
@@ -389,18 +389,140 @@ export default function App() {
   }, []);
 
   if (!user) {
+    const features = [
+      { icon: '📁', title: lang === 'en' ? 'Multi-Project Hub' : 'Cổng đa dự án', desc: lang === 'en' ? 'Manage up to 3 active projects simultaneously in isolated workspaces.' : 'Quản lý tối đa 3 dự án tham gia đồng thời trong môi trường làm việc tách biệt.', bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' },
+      { icon: '📋', title: lang === 'en' ? 'Agile TeamFlow' : 'Quy trình Kanban', desc: lang === 'en' ? 'Drag-and-drop task boards with custom details, files, and notes.' : 'Bảng nhiệm vụ Kanban linh hoạt, đính kèm tệp tin và ghi chú chi tiết cho từng thẻ.', bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20' },
+      { icon: '💬', title: lang === 'en' ? 'Project Chat' : 'Chat nhóm dự án', desc: lang === 'en' ? 'Real-time discussion channels isolated strictly to active project members.' : 'Kênh trao đổi thời gian thực biệt lập dành riêng cho các thành viên trong dự án.', bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/20' },
+      { icon: '📚', title: lang === 'en' ? 'Resource Vault' : 'Thư viện tài liệu', desc: lang === 'en' ? 'Share PDF & DOCX files with Admin review workflow and smart MS Word fallback.' : 'Chia sẻ tài liệu PDF/DOCX với quy trình kiểm duyệt bởi Admin và tự động sửa lỗi mở Word.', bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20' },
+      { icon: '🌐', title: lang === 'en' ? 'Community Forum' : 'Diễn đàn cộng đồng', desc: lang === 'en' ? 'Interactive academic threads with filtering by report, syllabus, or material.' : 'Kênh hỏi đáp chia sẻ kiến thức, phân loại theo chủ đề và môn học trực quan.', bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/20' },
+      { icon: '🏅', title: lang === 'en' ? 'Leaderboard & Badges' : 'Xếp hạng & Huy chương', desc: lang === 'en' ? 'Earn reputation points, achievement badges, and top contributor recognitions.' : 'Tích lũy điểm đóng góp, nhận huy hiệu vinh danh và thăng hạng trên bảng vàng.', bg: 'bg-pink-500/10', text: 'text-pink-400', border: 'border-pink-500/20' }
+    ];
+
+    const pills = [
+      lang === 'en' ? '📁 Max 3 Active Projects' : '📁 Tối đa 3 dự án active',
+      lang === 'en' ? '📋 Kanban Task Board' : '📋 Bảng nhiệm vụ Kanban',
+      lang === 'en' ? '💬 Project-Scoped Chat' : '💬 Chat riêng theo dự án',
+      lang === 'en' ? '📚 Admin-Approved Vault' : '📚 Kiểm duyệt tài liệu',
+      lang === 'en' ? '🌐 Academic Community' : '🌐 Diễn đàn hỏi đáp',
+      lang === 'en' ? '🏅 Gamified Leaderboard' : '🏅 Huy chương vinh danh'
+    ];
+
     return (
-      <div className="min-h-screen bg-background text-text-primary flex items-center justify-center p-4 relative [color-scheme:dark]">
-        <div className="fixed top-1/4 left-1/4 w-[350px] h-[350px] bg-accent-primary blur-[150px] opacity-[0.03] rounded-full pointer-events-none" />
-        <div className="w-full max-w-md">
-          <AuthModule
-            t={t}
-            accentColor={accent}
-            onLoginSuccess={() => {}}
-            logAction={(action, moduleName) => addLog(action, moduleName, 'Auth')}
-            onContinueAsGuest={loginAsGuest}
-          />
-        </div>
+      <div className="min-h-screen bg-background text-text-primary relative overflow-x-hidden [color-scheme:dark]">
+        {/* Ambient background glow */}
+        <div className="fixed top-10 left-10 w-[500px] h-[500px] bg-accent-primary blur-[180px] opacity-[0.06] rounded-full pointer-events-none" />
+        <div className="fixed bottom-10 right-10 w-[400px] h-[400px] bg-blue-500 blur-[180px] opacity-[0.04] rounded-full pointer-events-none" />
+
+        {/* Header Navbar */}
+        <header className="border-b border-border-dim bg-surface/50 backdrop-blur-md sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="px-2.5 h-10 rounded-2xl bg-accent-primary/20 border border-accent-primary/40 flex items-center justify-center text-accent-primary font-black text-xs sm:text-sm tracking-wider shadow-[0_0_20px_rgba(204,255,0,0.2)] whitespace-nowrap">
+                FULL HD
+              </div>
+              <div>
+                <span className="font-display font-black text-lg tracking-tight text-white leading-none block">{t.appName}</span>
+                <span className="text-[9px] sm:text-[10px] block text-text-muted font-mono tracking-widest uppercase mt-0.5">
+                  {lang === 'en' ? 'NEXT-GEN COLLABORATION ECOSYSTEM' : 'HỆ SINH THÁI CỘNG TÁC THẾ HỆ MỚI'}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                onClick={() => setLang(lang === 'en' ? 'vi' : 'en')}
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-background border border-border-dim text-xs font-bold text-text-secondary hover:text-white transition cursor-pointer"
+              >
+                {lang === 'en' ? '🇻🇳 Tiếng Việt' : '🇺🇸 English'}
+              </button>
+              <button
+                onClick={loginAsGuest}
+                className="px-3 sm:px-3.5 py-1.5 rounded-xl bg-surface hover:bg-surface-hover border border-border-dim text-xs font-bold text-accent-primary transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <span>👀 {lang === 'en' ? 'Guest View' : 'Khách truy cập'}</span>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content Optimized for Mobile, Tablet & Desktop Symmetry */}
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 lg:py-14">
+          <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8 sm:gap-12 lg:gap-12 items-center justify-center">
+            
+            {/* On Mobile & Tablet: Login box is top (order-1). On Desktop: Right column (order-2) */}
+            <div className="w-full max-w-md mx-auto lg:col-span-5 order-1 lg:order-2 lg:sticky lg:top-24">
+              <div className="bg-surface/90 border border-border-dim rounded-[32px] p-2 sm:p-4 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-accent-primary/10 blur-[50px] pointer-events-none" />
+                <AuthModule
+                  t={t}
+                  accentColor={accent}
+                  onLoginSuccess={() => {}}
+                  logAction={(action, moduleName) => addLog(action, moduleName, 'Auth')}
+                  onContinueAsGuest={loginAsGuest}
+                />
+              </div>
+            </div>
+
+            {/* On Mobile & Tablet: Features showcase below login (order-2). On Desktop: Left column (order-1) */}
+            <div className="w-full lg:col-span-7 space-y-6 sm:space-y-8 order-2 lg:order-1 pt-2">
+              <div className="space-y-3 sm:space-y-4 text-center lg:text-left">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent-primary/10 border border-accent-primary/30 text-accent-primary text-xs font-bold tracking-wide animate-pulse">
+                  <span>⚡</span>
+                  <span>{lang === 'en' ? 'Next-Gen Collaboration Ecosystem' : 'Hệ sinh thái cộng tác thế hệ mới'}</span>
+                </div>
+                
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black font-display tracking-tight text-white leading-[1.15]">
+                  {lang === 'en' ? 'Elevate Teamwork with ' : 'Đột phá quy trình làm việc cùng '}
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-primary via-emerald-400 to-cyan-400">
+                    {t.appName}
+                  </span>
+                </h1>
+
+                <p className="text-text-secondary text-sm sm:text-base leading-relaxed max-w-xl mx-auto lg:mx-0">
+                  {lang === 'en' 
+                    ? 'Seamlessly manage multi-project boards, participate in isolated Kanban task flows, share academic files with admin review, and communicate in real-time.'
+                    : 'Quản lý đa dự án song song, phân chia công việc bảng Kanban linh hoạt, chia sẻ tài liệu học tập được kiểm duyệt chặt chẽ và thảo luận nhóm biệt lập theo thời gian thực.'}
+                </p>
+              </div>
+
+              {/* Pills Bar */}
+              <div className="flex flex-wrap gap-2 justify-center lg:justify-start pt-1">
+                {pills.map((pill, idx) => (
+                  <span key={idx} className="px-3 py-1 rounded-xl bg-surface border border-border-dim text-text-secondary text-xs font-semibold shadow-sm">
+                    {pill}
+                  </span>
+                ))}
+              </div>
+
+              {/* Features Grid */}
+              <div className="pt-2 sm:pt-4">
+                <h3 className="text-xs font-mono uppercase tracking-widest text-text-muted mb-4 flex items-center justify-center lg:justify-start gap-2">
+                  <span>✨ {lang === 'en' ? 'Real Platform Capabilities' : 'Chức năng thực tế của hệ thống'}</span>
+                  <div className="h-px bg-border-dim flex-1 hidden sm:block" />
+                </h3>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+                  {features.map((f, idx) => (
+                    <div key={idx} className={`p-4 rounded-2xl bg-surface/80 border ${f.border} hover:bg-surface transition space-y-2 shadow-sm group text-left`}>
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-8 h-8 rounded-xl ${f.bg} flex items-center justify-center text-base shrink-0 group-hover:scale-110 transition-transform`}>
+                          {f.icon}
+                        </div>
+                        <h4 className={`font-bold text-sm ${f.text}`}>{f.title}</h4>
+                      </div>
+                      <p className="text-xs text-text-secondary leading-relaxed">{f.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </main>
+
+        <footer className="border-t border-border-dim py-6 mt-12 text-center text-xs text-text-muted font-mono">
+          © {new Date().getFullYear()} {t.appName} — Khoa Công Nghệ Thông Tin UTT. All rights reserved.
+        </footer>
+
         <ToastStack />
       </div>
     );
