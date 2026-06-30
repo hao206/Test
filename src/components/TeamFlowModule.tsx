@@ -88,29 +88,56 @@ const DraggableTaskCard: React.FC<DraggableCardProps> = ({
         {task.title}
       </h4>
 
-      {(task.notes || (task.attachments && task.attachments.length > 0) || task.reminderDate) && (
-        <div className="flex items-center gap-2 pt-1 text-[9px] text-text-muted">
-          {task.notes && (
-            <span className="flex items-center gap-0.5 text-text-secondary" title="Has notes">
-              <FileText className="w-2.5 h-2.5" /> Note
-            </span>
-          )}
-          {task.attachments && task.attachments.length > 0 && (
-            <span className="flex items-center gap-0.5 text-text-secondary" title="Attachments">
-              <Paperclip className="w-2.5 h-2.5" /> {task.attachments.length}
-            </span>
-          )}
-          {task.reminderDate && (
-            <span className="flex items-center gap-0.5 text-amber-400 font-bold" title={`Reminder: ${task.reminderDate}`}>
-              <Bell className="w-2.5 h-2.5 animate-bounce" /> {task.reminderDate}
-            </span>
-          )}
+      {task.description && (
+        <div className="text-[10px] text-text-secondary bg-background/60 border border-border-dim rounded-lg p-2 font-mono line-clamp-2 leading-relaxed break-words">
+          {task.description.replace(/\[HƯỚNG DẪN THỰC HIỆN\]:\s*/g, '')}
         </div>
       )}
 
+      {(() => {
+        const docCount = (task.attachments || []).filter(a => a.type !== 'image').length;
+        const imgCount = (task.attachments || []).filter(a => a.type === 'image').length;
+        const cmtCount = (task.comments || []).length;
+        const hasNotes = Boolean(task.notes && task.notes.trim());
+        const hasRemind = Boolean(task.reminderDate);
+
+        if (!docCount && !imgCount && !cmtCount && !hasNotes && !hasRemind) return null;
+
+        return (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[9px] font-bold">
+            {docCount > 0 && (
+              <span className="flex items-center gap-1 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded-md shadow-2xs" title="Đã có tài liệu đính kèm - Nhấn vào để tải về hoặc xem">
+                📄 {docCount} {lang === 'en' ? 'doc' : 'tài liệu'}
+              </span>
+            )}
+            {imgCount > 0 && (
+              <span className="flex items-center gap-1 bg-purple-500/15 text-purple-400 border border-purple-500/30 px-1.5 py-0.5 rounded-md shadow-2xs" title="Đã có hình ảnh đính kèm - Nhấn vào để xem">
+                🖼️ {imgCount} {lang === 'en' ? 'img' : 'ảnh'}
+              </span>
+            )}
+            {hasNotes && (
+              <span className="flex items-center gap-1 bg-blue-500/15 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded-md shadow-2xs" title="Đã có ghi chú / hướng dẫn chi tiết">
+                📝 {lang === 'en' ? 'Note' : 'Ghi chú'}
+              </span>
+            )}
+            {cmtCount > 0 && (
+              <span className="flex items-center gap-1 bg-amber-500/15 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded-md shadow-2xs" title="Nhận xét của các thành viên">
+                💬 {cmtCount} {lang === 'en' ? 'cmt' : 'nhận xét'}
+              </span>
+            )}
+            {hasRemind && (
+              <span className="flex items-center gap-1 bg-red-500/15 text-red-400 border border-red-500/30 px-1.5 py-0.5 rounded-md shadow-2xs" title={`Lịch nhắc nhở: ${task.reminderDate}`}>
+                ⏰ {task.reminderDate && task.reminderDate.includes('T') ? task.reminderDate.slice(0, 16).replace('T', ' ') : task.reminderDate}
+              </span>
+            )}
+          </div>
+        );
+      })()}
+
       <div className="flex items-center justify-between pt-1">
         <span className="text-[9px] text-text-muted font-mono flex items-center gap-1">
-          <CheckCircle2 className="w-3 h-3 text-text-muted" /> {task.dueDate}
+          <CheckCircle2 className="w-3 h-3 text-text-muted shrink-0" /> 
+          <span className="truncate">{task.dueDate && task.dueDate.includes('T') ? task.dueDate.split('T')[0] : (task.dueDate || 'N/A')}</span>
         </span>
         {task.assignedTo && typeof task.assignedTo === 'object' && (task.assignedTo as any).avatar ? (
           <Avatar src={(task.assignedTo as any).avatar} size="sm" className="w-5 h-5 border-surface shadow-sm" />
@@ -264,8 +291,9 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
   const [showGuestBlockModal, setShowGuestBlockModal] = useState(false);
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDesc, setTaskDesc] = useState('');
+  const [taskInstructions, setTaskInstructions] = useState('');
   const [taskPriority, setTaskPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
-  const [taskAssigned, setTaskAssigned] = useState('Alex Nguyen');
+  const [taskAssigned, setTaskAssigned] = useState('');
   const [taskDueDate, setTaskDueDate] = useState('2026-06-25');
   const [selectedProjectId, setSelectedProjectId] = useState('');
 
@@ -275,6 +303,7 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
   const [detailReminder, setDetailReminder] = useState('');
   const [detailNewAttachmentUrl, setDetailNewAttachmentUrl] = useState('');
   const [detailNewAttachmentName, setDetailNewAttachmentName] = useState('');
+  const [detailNewComment, setDetailNewComment] = useState('');
 
   useEffect(() => {
     if (selectedTaskForDetail) {
@@ -282,6 +311,7 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
       setDetailReminder(selectedTaskForDetail.reminderDate || '');
       setDetailNewAttachmentUrl('');
       setDetailNewAttachmentName('');
+      setDetailNewComment('');
     }
   }, [selectedTaskForDetail]);
 
@@ -393,15 +423,18 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
       await addTask({
         projectId: projId,
         title: taskTitle,
-        description: taskDesc,
+        description: taskInstructions ? `${taskDesc}\n\n[HƯỚNG DẪN THỰC HIỆN]: ${taskInstructions}` : taskDesc,
+        notes: taskInstructions,
         priority: taskPriority,
         status: 'To Do',
+        assignedTo: taskAssigned || user?.fullName || 'Thành viên',
         dueDate: taskDueDate,
       } as any);
       addLog(`Dispatched new plan work: ${taskTitle}`, 'TeamFlow Pro', user?.fullName || '');
       addToast(lang === 'en' ? 'Task created!' : 'Tạo task thành công!', 'success');
       setTaskTitle('');
       setTaskDesc('');
+      setTaskInstructions('');
       setShowAddTask(false);
     } catch (err: any) {
       addToast(err.message || 'Tạo task thất bại.', 'error');
@@ -490,7 +523,7 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
             <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
               {activeProject && (
                 <div className="flex items-center -space-x-2 overflow-hidden mr-1">
-                  {(activeProject.members || ['Alex Nguyen', 'Linh Dang', 'Minh Hoang']).slice(0, 4).map((m, idx) => (
+                  {(activeProject.members && activeProject.members.length > 0 ? activeProject.members : [activeProject.leaderName || user?.fullName || 'Leader']).slice(0, 5).map((m, idx) => (
                     <div key={idx} className="inline-block h-7 w-7 rounded-full ring-2 ring-surface bg-surface-hover border border-border-dim flex items-center justify-center text-[10px] font-bold text-text-primary shadow-sm" title={m}>
                       {m.charAt(0).toUpperCase()}
                     </div>
@@ -660,8 +693,21 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
                     value={taskDesc}
                     onChange={(e) => setTaskDesc(e.target.value)}
                     rows={2}
-                    placeholder={lang === 'en' ? 'Reference parameters, acceptance criteria, constraints...' : 'Mô tả đầu ra, tiêu chí kiểm thử, ràng buộc...'}
+                    placeholder={lang === 'en' ? 'Reference parameters, acceptance criteria, constraints...' : 'Mô tả đầu ra, mục tiêu công việc...'}
                     className="w-full bg-background border border-border-dim text-xs text-text-primary rounded-xl p-3 focus:outline-none focus:border-accent-primary transition placeholder-text-muted"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1">
+                    {lang === 'en' ? 'Detailed Implementation Guide / Instructions' : 'Chi tiết hướng dẫn thực hiện'}
+                  </label>
+                  <textarea
+                    value={taskInstructions}
+                    onChange={(e) => setTaskInstructions(e.target.value)}
+                    rows={3}
+                    placeholder={lang === 'en' ? 'Step-by-step technical guide, references, algorithms, or API specs...' : 'Hướng dẫn chi tiết từng bước thực hiện, tài liệu tham khảo, API hoặc giải thuật cần làm...'}
+                    className="w-full bg-background border border-border-dim text-xs text-text-primary rounded-xl p-3 focus:outline-none focus:border-accent-primary transition placeholder-text-muted font-mono"
                   />
                 </div>
 
@@ -698,11 +744,17 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
                     onChange={(e) => setTaskAssigned(e.target.value)}
                     className="w-full bg-background border border-border-dim text-xs text-text-primary rounded-xl p-3 focus:outline-none focus:border-accent-primary transition cursor-pointer"
                   >
-                    <option value="Alex Nguyen">Alex Nguyen</option>
-                    <option value="Linh Dang">Linh Dang</option>
-                    <option value="Minh Hoang">Minh Hoang</option>
-                    <option value="Tomas Ly">Tomas Ly</option>
-                    <option value="Phuong Mai">Phuong Mai</option>
+                    {(() => {
+                      const curProj = projects.find(p => p.id === (selectedProjectId || activeProjectId || projects[0]?.id)) || activeProject;
+                      const membersList = Array.from(new Set([
+                        curProj?.leaderName,
+                        ...(curProj?.members || []),
+                        user?.fullName
+                      ].filter(Boolean) as string[]));
+                      return membersList.map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ));
+                    })()}
                   </select>
                 </div>
 
@@ -885,6 +937,18 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
                 </div>
               </div>
 
+              {/* Detailed Implementation Guide / Description */}
+              {selectedTaskForDetail.description && (
+                <div className="bg-surface border border-border-dim rounded-2xl p-4 space-y-2">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-accent-primary flex items-center gap-1.5">
+                    💡 {lang === 'en' ? 'Implementation Guide & Description' : 'Chi Tiết Hướng Dẫn Thực Hiện & Mục Tiêu'}
+                  </span>
+                  <p className="text-xs text-text-primary whitespace-pre-wrap leading-relaxed font-mono">
+                    {selectedTaskForDetail.description}
+                  </p>
+                </div>
+              )}
+
               {/* Reminder Section */}
               <div className="space-y-2">
                 <label className="flex items-center justify-between text-xs font-bold text-text-primary">
@@ -1057,6 +1121,80 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
                 </div>
               </div>
 
+              {/* Comments & Discussion Section */}
+              <div className="space-y-3 pt-3 border-t border-border-dim">
+                <label className="block text-xs font-bold text-text-primary flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-amber-400">
+                    💬 {lang === 'en' ? 'Team Comments & Feedback' : 'Nhận xét & Thảo luận kèm theo'}
+                  </span>
+                  <Badge variant="outline" className="text-[9px]">
+                    {(selectedTaskForDetail.comments || []).length} {lang === 'en' ? 'comments' : 'nhận xét'}
+                  </Badge>
+                </label>
+
+                {selectedTaskForDetail.comments && selectedTaskForDetail.comments.length > 0 ? (
+                  <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+                    {selectedTaskForDetail.comments.map((cmt) => (
+                      <div key={cmt.id} className="bg-background border border-border-dim rounded-xl p-3 space-y-1">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="font-bold text-accent-primary flex items-center gap-1.5">
+                            {cmt.authorName || cmt.author}
+                          </span>
+                          <span className="text-text-muted font-mono">{new Date(cmt.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit'})}</span>
+                        </div>
+                        <p className="text-xs text-text-primary whitespace-pre-wrap leading-relaxed">{cmt.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-4 border border-dashed border-border-dim rounded-xl text-center text-text-muted text-xs">
+                    {lang === 'en' ? 'No comments yet. Start the conversation!' : 'Chưa có nhận xét nào cho công việc này.'}
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={detailNewComment}
+                    onChange={(e) => setDetailNewComment(e.target.value)}
+                    placeholder={lang === 'en' ? 'Write feedback or instructions for team members...' : 'Nhập nhận xét, hướng dẫn hoặc trao đổi với nhóm...'}
+                    className="flex-1 bg-background border border-border-dim rounded-xl px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent-primary transition"
+                  />
+                  <Button
+                    type="button"
+                    disabled={!detailNewComment.trim()}
+                    onClick={() => {
+                      if (!selectedTaskForDetail || !detailNewComment.trim()) return;
+                      const newCmt = {
+                        id: `cmt_${Date.now()}`,
+                        author: user?.id || 'm1',
+                        authorName: user?.fullName || 'Thành viên',
+                        avatar: user?.avatar,
+                        content: detailNewComment.trim(),
+                        createdAt: new Date().toISOString()
+
+                      };
+                      const updatedComments = [...(selectedTaskForDetail.comments || []), newCmt];
+                      const updTask = {
+                        ...selectedTaskForDetail,
+                        comments: updatedComments,
+                        commentsCount: updatedComments.length
+                      };
+                      setSelectedTaskForDetail(updTask);
+                      updateTask(selectedTaskForDetail.id, {
+                        comments: updatedComments,
+                        commentsCount: updatedComments.length
+                      } as any);
+                      setDetailNewComment('');
+                      addToast(lang === 'en' ? 'Comment added!' : 'Đã gửi nhận xét!', 'success');
+                    }}
+                    className="text-xs px-4 shrink-0"
+                  >
+                    {lang === 'en' ? 'Send' : 'Gửi'}
+                  </Button>
+                </div>
+              </div>
+
               {/* Modal Footer Actions */}
               <div className="flex justify-end gap-3 pt-4 border-t border-border-dim">
                 <Button
@@ -1073,7 +1211,9 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
                         notes: detailNotes,
                         reminderDate: detailReminder,
                         attachments: selectedTaskForDetail.attachments || [],
-                      });
+                        comments: selectedTaskForDetail.comments || [],
+                        commentsCount: (selectedTaskForDetail.comments || []).length,
+                      } as any);
                       if (detailReminder) {
                         addNotification(
                           lang === 'en' ? '⏰ Reminder Saved' : '⏰ Đã lưu lịch nhắc nhở',

@@ -39,6 +39,15 @@ async function enrichProject(row, userId) {
     isTeamMember = memberRes.rows.length > 0;
   }
 
+  const allMembersRes = await pool.query(
+    'SELECT u.full_name FROM team_members tm JOIN users u ON u.id = tm.user_id WHERE tm.project_id = $1',
+    [row.id]
+  );
+  const members = allMembersRes.rows.map(m => m.full_name);
+  if (!members.includes(leader.full_name) && leader.full_name) {
+    members.unshift(leader.full_name);
+  }
+
   return {
     id: String(row.id),
     name: row.name,
@@ -52,6 +61,7 @@ async function enrichProject(row, userId) {
     leaderId: String(row.leader_id),
     leaderName: leader.full_name || 'Unknown',
     leaderAvatar: leader.avatar,
+    members,
     reviewStatus: row.review_status,
     hidden: row.hidden,
     featured: row.featured,
@@ -341,8 +351,20 @@ router.put('/:id/applications/:appId', requireAuth, async (req, res) => {
     );
     if (!appRes.rows[0]) return res.status(404).json({ error: 'Không tìm thấy đơn ứng tuyển.' });
 
-    // Notify applicant
     const app = appRes.rows[0];
+    if (action === 'approve') {
+      await pool.query(
+        "INSERT INTO team_members (project_id, user_id, role_in_team) VALUES ($1, $2, 'Member') ON CONFLICT DO NOTHING",
+        [req.params.id, app.applicant_id]
+      );
+    } else if (action === 'reject') {
+      await pool.query(
+        "DELETE FROM team_members WHERE project_id=$1 AND user_id=$2",
+        [req.params.id, app.applicant_id]
+      );
+    }
+
+    // Notify applicant
     const msg = action === 'approve'
       ? `Đơn ứng tuyển vào dự án "${proj.rows[0].name}" của bạn đã được CHẤP NHẬN! 🎉`
       : `Đơn ứng tuyển vào dự án "${proj.rows[0].name}" của bạn chưa phù hợp lần này.`;

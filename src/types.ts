@@ -61,6 +61,7 @@ export interface Task {
   assignedAvatar?: string;
   dueDate: string;
   commentsCount: number;
+  comments?: { id: string; author: string; authorName?: string; avatar?: string; content: string; createdAt: string }[];
   notes?: string;
   attachments?: { id: string; name: string; url: string; type: string }[];
   reminderDate?: string;
