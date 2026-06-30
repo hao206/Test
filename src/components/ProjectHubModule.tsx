@@ -525,8 +525,8 @@ export const ProjectHubModule: React.FC<ProjectHubProps> = ({
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">{t.projTeamSizeLabel}</label>
                   <input
                     type="number"
-                    min="2"
-                    max="10"
+                    min="1"
+                    max="50"
                     required
                     value={projTeamSize}
                     onChange={(e) => setProjTeamSize(Number(e.target.value))}
