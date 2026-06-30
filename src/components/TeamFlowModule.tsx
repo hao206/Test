@@ -33,6 +33,7 @@ interface DraggableCardProps {
   handleDeleteTask: (id: string) => void;
   colValue: TaskStatus;
   onCardClick: (task: Task) => void;
+  canDelete?: boolean;
 }
 
 const DraggableTaskCard: React.FC<DraggableCardProps> = ({
@@ -43,7 +44,8 @@ const DraggableTaskCard: React.FC<DraggableCardProps> = ({
   handleNextStatus,
   handleDeleteTask,
   colValue,
-  onCardClick
+  onCardClick,
+  canDelete = true
 }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
@@ -68,14 +70,16 @@ const DraggableTaskCard: React.FC<DraggableCardProps> = ({
       <div className="flex justify-between items-start gap-2">
         <Badge variant="default" className="text-[8px] bg-background border-border-dim px-1.5 truncate max-w-[150px]">{task.projectName}</Badge>
         <div className="flex items-center gap-1.5">
-          <button 
-            type="button"
-            onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}
-            className="text-text-muted hover:text-red-500 transition cursor-pointer"
-            title={lang === 'en' ? 'Delete Task' : 'Xóa công việc'}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-          </button>
+          {canDelete && (
+            <button 
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}
+              className="text-text-muted hover:text-red-500 transition cursor-pointer"
+              title={lang === 'en' ? 'Delete Task' : 'Xóa công việc'}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+            </button>
+          )}
           <div className={`w-2 h-2 rounded-full shrink-0 mt-0.5 ${
             task.priority === 'High' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' :
             task.priority === 'Medium' ? 'bg-amber-400' :
@@ -100,8 +104,9 @@ const DraggableTaskCard: React.FC<DraggableCardProps> = ({
         const cmtCount = (task.comments || []).length;
         const hasNotes = Boolean(task.notes && task.notes.trim());
         const hasRemind = Boolean(task.reminderDate);
+        const hasEval = Boolean(task.evaluation);
 
-        if (!docCount && !imgCount && !cmtCount && !hasNotes && !hasRemind) return null;
+        if (!docCount && !imgCount && !cmtCount && !hasNotes && !hasRemind && !hasEval) return null;
 
         return (
           <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[9px] font-bold">
@@ -128,6 +133,11 @@ const DraggableTaskCard: React.FC<DraggableCardProps> = ({
             {hasRemind && (
               <span className="flex items-center gap-1 bg-red-500/15 text-red-400 border border-red-500/30 px-1.5 py-0.5 rounded-md shadow-2xs" title={`Lịch nhắc nhở: ${task.reminderDate}`}>
                 ⏰ {task.reminderDate && task.reminderDate.includes('T') ? task.reminderDate.slice(0, 16).replace('T', ' ') : task.reminderDate}
+              </span>
+            )}
+            {hasEval && task.evaluation && (
+              <span className="flex items-center gap-1 bg-amber-500/15 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded-md shadow-2xs font-bold" title={`Đã nghiệm thu: ${task.evaluation.score} sao - ${task.evaluation.quality}`}>
+                ⭐ {task.evaluation.score}.0
               </span>
             )}
           </div>
@@ -184,9 +194,17 @@ const DraggableTaskCard: React.FC<DraggableCardProps> = ({
             <ArrowRight className="w-3 h-3" />
           </button>
         ) : (
-          <div className="flex-1 text-center text-emerald-400 text-[9px] font-bold flex items-center justify-center gap-1 bg-emerald-500/10 rounded border border-emerald-500/20 py-1">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+            className="flex-1 text-center text-emerald-400 text-[9px] font-bold flex items-center justify-center gap-1 bg-emerald-500/10 hover:bg-emerald-500/20 rounded border border-emerald-500/20 py-1 transition cursor-pointer"
+            title={lang === 'en' ? 'Task Completed' : 'Nhiệm vụ đã hoàn tất'}
+          >
             <CheckCircle2 className="w-3 h-3" />
-          </div>
+            <span>{lang === 'en' ? 'Done' : 'Hoàn tất'}</span>
+          </button>
         )}
       </div>
     </div>
@@ -304,6 +322,10 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
   const [detailNewAttachmentUrl, setDetailNewAttachmentUrl] = useState('');
   const [detailNewAttachmentName, setDetailNewAttachmentName] = useState('');
   const [detailNewComment, setDetailNewComment] = useState('');
+  const [detailEvalScore, setDetailEvalScore] = useState<number>(5);
+  const [detailEvalQuality, setDetailEvalQuality] = useState<'Excellent' | 'Good' | 'Acceptable' | 'Needs Improvement'>('Excellent');
+  const [detailEvalComment, setDetailEvalComment] = useState('');
+  const [detailEvalCriteria, setDetailEvalCriteria] = useState<{ onTime?: boolean; metRequirements?: boolean; goodDocumentation?: boolean }>({ onTime: true, metRequirements: true, goodDocumentation: true });
 
   useEffect(() => {
     if (selectedTaskForDetail) {
@@ -312,6 +334,17 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
       setDetailNewAttachmentUrl('');
       setDetailNewAttachmentName('');
       setDetailNewComment('');
+      if (selectedTaskForDetail.evaluation) {
+        setDetailEvalScore(selectedTaskForDetail.evaluation.score || 5);
+        setDetailEvalQuality(selectedTaskForDetail.evaluation.quality || 'Excellent');
+        setDetailEvalComment(selectedTaskForDetail.evaluation.comment || '');
+        setDetailEvalCriteria(selectedTaskForDetail.evaluation.criteria || { onTime: true, metRequirements: true, goodDocumentation: true });
+      } else {
+        setDetailEvalScore(5);
+        setDetailEvalQuality('Excellent');
+        setDetailEvalComment('');
+        setDetailEvalCriteria({ onTime: true, metRequirements: true, goodDocumentation: true });
+      }
     }
   }, [selectedTaskForDetail]);
 
@@ -391,6 +424,19 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
       setShowGuestBlockModal(true);
       return;
     }
+    const targetTask = tasks.find(t => t.id === taskId);
+    const isAdminOrLeader = activeUserRole === 'Admin' || activeUserRole === 'Super Admin' || activeUserRole === 'Moderator' || activeProject?.leaderId === user?.id || activeProject?.leaderName === user?.fullName;
+    const isAssignee = targetTask && (targetTask.assignedTo === user?.fullName || (typeof targetTask.assignedTo === 'object' && (targetTask.assignedTo as any)?.fullName === user?.fullName));
+
+    if (!isAdminOrLeader && targetTask && (targetTask.status === 'Done' || targetTask.status === 'Review')) {
+      addToast(lang === 'en' ? 'Cannot delete completed/reviewing tasks without Leader/Admin permission!' : '⚠️ Không thể tùy ý xóa công việc đã hoàn thành hoặc đang nghiệm thu. Vui lòng liên hệ Trưởng nhóm!', 'error');
+      return;
+    }
+    if (!isAdminOrLeader && !isAssignee) {
+      addToast(lang === 'en' ? 'You do not have permission to delete this card!' : '⚠️ Bạn không có quyền xóa thẻ công việc này!', 'error');
+      return;
+    }
+
     if (window.confirm(lang === 'en' ? 'Delete this task permanently?' : 'Xóa công việc này vĩnh viễn?')) {
       deleteTask(taskId).then(() => {
         addToast(lang === 'en' ? 'Task deleted permanently' : 'Đã xóa công việc vĩnh viễn', 'success');
@@ -629,19 +675,25 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
 
                 {/* Droppable Columns Area */}
                 <DroppableColumn id={col.value}>
-                  {colTasks.map(task => (
-                    <DraggableTaskCard
-                      key={task.id}
-                      task={task}
-                      accentColor={accentColor}
-                      lang={lang}
-                      handlePrevStatus={handlePrevStatus}
-                      handleNextStatus={handleNextStatus}
-                      handleDeleteTask={handleDeleteTask}
-                      colValue={col.value}
-                      onCardClick={(t) => setSelectedTaskForDetail(t)}
-                    />
-                  ))}
+                  {colTasks.map(task => {
+                    const isAdminOrLeader = activeUserRole === 'Admin' || activeUserRole === 'Super Admin' || activeUserRole === 'Moderator' || activeProject?.leaderId === user?.id || activeProject?.leaderName === user?.fullName;
+                    const isAssignee = task.assignedTo === user?.fullName || (typeof task.assignedTo === 'object' && (task.assignedTo as any)?.fullName === user?.fullName);
+                    const canDeleteCard = isAdminOrLeader || (Boolean(isAssignee) && task.status !== 'Done' && task.status !== 'Review');
+                    return (
+                      <DraggableTaskCard
+                        key={task.id}
+                        task={task}
+                        accentColor={accentColor}
+                        lang={lang}
+                        handlePrevStatus={handlePrevStatus}
+                        handleNextStatus={handleNextStatus}
+                        handleDeleteTask={handleDeleteTask}
+                        colValue={col.value}
+                        onCardClick={(t) => setSelectedTaskForDetail(t)}
+                        canDelete={canDeleteCard}
+                      />
+                    );
+                  })}
 
                   {colTasks.length === 0 && (
                     <div className="h-24 border border-dashed border-border-dim rounded-xl flex items-center justify-center text-[10px] text-text-muted">
@@ -933,7 +985,11 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
                 </div>
                 <div>
                   <span className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">Assignee</span>
-                  <span className="text-text-primary font-medium">{selectedTaskForDetail.assignedTo || 'Unassigned'}</span>
+                  <span className="text-text-primary font-medium">
+                    {typeof selectedTaskForDetail.assignedTo === 'object' && selectedTaskForDetail.assignedTo !== null
+                      ? ((selectedTaskForDetail.assignedTo as any).fullName || (selectedTaskForDetail.assignedTo as any).name || 'Assigned')
+                      : (selectedTaskForDetail.assignedTo || 'Unassigned')}
+                  </span>
                 </div>
               </div>
 
@@ -1194,6 +1250,194 @@ export const TeamFlowModule: React.FC<TeamFlowProps> = ({
                   </Button>
                 </div>
               </div>
+
+              {/* ✨ EXPERT TASK EVALUATION & ACCEPTANCE SECTION */}
+              {(selectedTaskForDetail.status === 'Review' || selectedTaskForDetail.status === 'Done' || selectedTaskForDetail.evaluation) && (
+                <div className="bg-surface border-2 border-emerald-500/30 rounded-2xl p-4 space-y-3.5 shadow-lg relative overflow-hidden mt-3">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-dim pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-sm">
+                        ⭐
+                      </div>
+                      <div>
+                        <span className="text-xs font-black uppercase tracking-wider text-emerald-400 block">
+                          {lang === 'en' ? 'Expert Acceptance & Evaluation' : 'Nghiệm thu & Đánh giá Chuyên gia'}
+                        </span>
+                        <span className="text-[10px] text-text-muted">
+                          {selectedTaskForDetail.status === 'Review'
+                            ? (lang === 'en' ? 'Ready for leader review & scoring' : '⏳ Chờ thẩm định & nghiệm thu chính thức')
+                            : (lang === 'en' ? 'Task completed and officially evaluated' : '✔ Đã hoàn thành và nghiệm thu kết quả')}
+                        </span>
+                      </div>
+                    </div>
+                    {selectedTaskForDetail.evaluation?.evaluatedBy && (
+                      <Badge variant="success" className="text-[9px] font-mono">
+                        {lang === 'en' ? 'Evaluated by:' : 'Duyệt bởi:'} {selectedTaskForDetail.evaluation.evaluatedBy}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Evaluation Criteria Checklist */}
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+                      {lang === 'en' ? 'Acceptance Criteria Checklist' : 'Tiêu chuẩn kiểm duyệt chất lượng'}
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <label className="flex items-center gap-2 bg-background p-2.5 rounded-xl border border-border-dim cursor-pointer text-[11px] select-none hover:border-emerald-500/30 transition">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(detailEvalCriteria?.onTime)}
+                          onChange={(e) => setDetailEvalCriteria({ ...detailEvalCriteria, onTime: e.target.checked })}
+                          className="rounded text-emerald-500 focus:ring-0"
+                        />
+                        <span className={detailEvalCriteria?.onTime ? 'text-emerald-400 font-bold' : 'text-text-muted'}>
+                          ⏱️ {lang === 'en' ? 'On-Time Delivery' : 'Đúng tiến độ'}
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2 bg-background p-2.5 rounded-xl border border-border-dim cursor-pointer text-[11px] select-none hover:border-emerald-500/30 transition">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(detailEvalCriteria?.metRequirements)}
+                          onChange={(e) => setDetailEvalCriteria({ ...detailEvalCriteria, metRequirements: e.target.checked })}
+                          className="rounded text-emerald-500 focus:ring-0"
+                        />
+                        <span className={detailEvalCriteria?.metRequirements ? 'text-emerald-400 font-bold' : 'text-text-muted'}>
+                          🎯 {lang === 'en' ? 'Met Requirements' : 'Đạt chuẩn Yêu cầu'}
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2 bg-background p-2.5 rounded-xl border border-border-dim cursor-pointer text-[11px] select-none hover:border-emerald-500/30 transition">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(detailEvalCriteria?.goodDocumentation)}
+                          onChange={(e) => setDetailEvalCriteria({ ...detailEvalCriteria, goodDocumentation: e.target.checked })}
+                          className="rounded text-emerald-500 focus:ring-0"
+                        />
+                        <span className={detailEvalCriteria?.goodDocumentation ? 'text-emerald-400 font-bold' : 'text-text-muted'}>
+                          📑 {lang === 'en' ? 'Complete Artifacts' : 'Tài liệu & Minh chứng'}
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Star Rating & Quality Level */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block mb-1.5">
+                        {lang === 'en' ? 'Score & Quality Rating' : 'Chấm điểm chất lượng'}
+                      </span>
+                      <div className="flex items-center gap-1.5 bg-background p-2 rounded-xl border border-border-dim">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => {
+                              setDetailEvalScore(star);
+                              if (star === 5) setDetailEvalQuality('Excellent');
+                              else if (star === 4) setDetailEvalQuality('Good');
+                              else if (star === 3) setDetailEvalQuality('Acceptable');
+                              else setDetailEvalQuality('Needs Improvement');
+                            }}
+                            className={`text-base transition transform hover:scale-125 cursor-pointer ${
+                              star <= detailEvalScore ? 'text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.5)]' : 'text-border-dim opacity-40'
+                            }`}
+                          >
+                            ★
+                          </button>
+                        ))}
+                        <span className="ml-auto text-xs font-bold font-mono px-2 py-0.5 rounded bg-surface border border-border-dim text-amber-400">
+                          {detailEvalScore}.0 / 5.0
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block mb-1.5">
+                        {lang === 'en' ? 'Evaluation Level' : 'Xếp loại chất lượng'}
+                      </span>
+                      <select
+                        value={detailEvalQuality}
+                        onChange={(e: any) => {
+                          setDetailEvalQuality(e.target.value);
+                          if (e.target.value === 'Excellent') setDetailEvalScore(5);
+                          else if (e.target.value === 'Good') setDetailEvalScore(4);
+                          else if (e.target.value === 'Acceptable') setDetailEvalScore(3);
+                          else setDetailEvalScore(2);
+                        }}
+                        className="w-full bg-background border border-border-dim rounded-xl px-3 py-2 text-xs text-text-primary font-bold focus:outline-none focus:border-emerald-500"
+                      >
+                        <option value="Excellent">🏆 {lang === 'en' ? 'Excellent (5⭐)' : 'Xuất sắc (5⭐)'}</option>
+                        <option value="Good">👍 {lang === 'en' ? 'Good (4⭐)' : 'Tốt (4⭐)'}</option>
+                        <option value="Acceptable">👌 {lang === 'en' ? 'Acceptable (3⭐)' : 'Đạt yêu cầu (3⭐)'}</option>
+                        <option value="Needs Improvement">⚠️ {lang === 'en' ? 'Needs Improvement (<3⭐)' : 'Cần bổ sung/hoàn thiện'}</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Evaluator Comment */}
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block mb-1">
+                      {lang === 'en' ? 'Leader Acceptance Note' : 'Nhận xét nghiệm thu từ Trưởng nhóm'}
+                    </span>
+                    <input
+                      type="text"
+                      value={detailEvalComment}
+                      onChange={(e) => setDetailEvalComment(e.target.value)}
+                      placeholder={lang === 'en' ? 'Enter feedback or summary of achievements...' : 'Ghi chú đánh giá, khen thưởng hoặc góp ý hoàn thiện...'}
+                      className="w-full bg-background border border-border-dim rounded-xl px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-emerald-500 transition"
+                    />
+                  </div>
+
+                  {/* Approve / Save Evaluation Button */}
+                  <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-border-dim">
+                    {selectedTaskForDetail.status === 'Review' && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          const upd = { ...selectedTaskForDetail, status: 'Doing' as TaskStatus };
+                          setSelectedTaskForDetail(upd);
+                          updateTaskStatus(selectedTaskForDetail.id, 'Doing');
+                          addToast(lang === 'en' ? 'Requested changes. Task moved back to Doing.' : '↩ Đã yêu cầu chỉnh sửa và chuyển về Đang làm.', 'info');
+                        }}
+                        className="text-xs border-amber-500/30 text-amber-400 hover:bg-amber-500/10 py-1.5"
+                      >
+                        ↩ {lang === 'en' ? 'Request Revision' : 'Yêu cầu làm lại'}
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      onClick={async () => {
+                        const evalData = {
+                          score: detailEvalScore,
+                          quality: detailEvalQuality,
+                          comment: detailEvalComment.trim() || (detailEvalQuality === 'Excellent' ? 'Hoàn thành xuất sắc nhiệm vụ!' : 'Đã nghiệm thu công việc.'),
+                          evaluatedBy: user?.fullName || 'Trưởng nhóm',
+                          evaluatedAt: new Date().toISOString(),
+                          criteria: detailEvalCriteria
+                        };
+                        const upd = {
+                          ...selectedTaskForDetail,
+                          status: 'Done' as TaskStatus,
+                          evaluation: evalData
+                        };
+                        setSelectedTaskForDetail(upd);
+                        await updateTask(selectedTaskForDetail.id, {
+                          status: 'Done',
+                          evaluation: evalData
+                        } as any);
+                        addReputation(detailEvalScore * 5);
+                        addToast(lang === 'en' ? `Task Evaluated & Approved! (+${detailEvalScore * 5} Rep)` : `🎉 Đã nghiệm thu công việc xuất sắc! (+${detailEvalScore * 5} điểm uy tín)`, 'success');
+                        addLog(`Evaluated task '${selectedTaskForDetail.title}' with ${detailEvalScore} stars`, 'TeamFlow Pro', user?.fullName || '');
+                      }}
+                      className="text-xs bg-emerald-500 hover:bg-emerald-600 text-black font-black py-1.5 px-4 shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+                    >
+                      ✔ {selectedTaskForDetail.status === 'Done'
+                        ? (lang === 'en' ? 'Update Evaluation' : 'Lưu Kết quả Đánh giá')
+                        : (lang === 'en' ? 'Approve & Mark Done' : 'Nghiệm thu & Hoàn thành')}
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {/* Modal Footer Actions */}
               <div className="flex justify-end gap-3 pt-4 border-t border-border-dim">

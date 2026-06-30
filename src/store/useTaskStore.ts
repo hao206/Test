@@ -40,7 +40,11 @@ export const useTaskStore = create<TaskState>()((set, get) => ({
   updateTask: async (id, data) => {
     const updated = await api.put<Task>(`/tasks/${id}`, data);
     set((state) => ({
-      tasks: state.tasks.map((t) => t.id === id ? updated : t),
+      tasks: state.tasks.map((t) => {
+        if (t.id !== id) return t;
+        const cleanUpdated = Object.fromEntries(Object.entries(updated || {}).filter(([_, v]) => v !== undefined));
+        return { ...t, ...cleanUpdated };
+      }),
     }));
     return updated;
   },

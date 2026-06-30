@@ -38,7 +38,7 @@ export const Dashboard: React.FC = () => {
 
   // Filter tasks assigned to current user
   const userFilteredTasks = (tasks || []).filter(task => {
-    const isMe = user && task.assignedTo === user.fullName;
+    const isMe = user && (task.assignedTo === user.fullName || (typeof task.assignedTo === 'object' && task.assignedTo !== null && ((task.assignedTo as any).fullName === user.fullName || String((task.assignedTo as any).id) === String(user.id))));
     if (!isMe) return false;
     if (widgetTaskFilter === 'High') return task.priority === 'High';
     return true;

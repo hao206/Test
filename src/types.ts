@@ -65,6 +65,18 @@ export interface Task {
   notes?: string;
   attachments?: { id: string; name: string; url: string; type: string }[];
   reminderDate?: string;
+  evaluation?: {
+    score: number;
+    quality: 'Excellent' | 'Good' | 'Acceptable' | 'Needs Improvement';
+    comment?: string;
+    evaluatedBy?: string;
+    evaluatedAt?: string;
+    criteria?: {
+      onTime?: boolean;
+      metRequirements?: boolean;
+      goodDocumentation?: boolean;
+    };
+  };
 }
 
 export interface Post {
