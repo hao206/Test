@@ -40,6 +40,20 @@ export const ProjectHubModule: React.FC<ProjectHubProps> = ({
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch pending app counts for leader's projects so they can see badge
+  useEffect(() => {
+    if (!user || user.role === 'Guest') return;
+    const leaderProjects = projects.filter(p => p.leaderId === user.id && p.status === 'Recruiting');
+    leaderProjects.forEach(async (p) => {
+      try {
+        const apps = await api.get<any[]>(`/projects/${p.id}/applications`);
+        const count = Array.isArray(apps) ? apps.filter(a => a.status === 'Pending').length : 0;
+        setPendingAppCounts(prev => ({ ...prev, [p.id]: count }));
+      } catch { /* ignore */ }
+    });
+  }, [projects.length, user?.id]);
+
+
   useEffect(() => {
     if (selectedProjectId && projects.length > 0) {
       const p = projects.find(x => x.id === selectedProjectId);
@@ -81,6 +95,8 @@ export const ProjectHubModule: React.FC<ProjectHubProps> = ({
   const [showManageModal, setShowManageModal] = useState(false);
   const [manageProjId, setManageProjId] = useState<string | null>(null);
   const [manageApplications, setManageApplications] = useState<any[]>([]);
+  const [pendingAppCounts, setPendingAppCounts] = useState<Record<string, number>>({});
+
 
   const categories = ['All', 'Web Application', 'IoT & Hardware', 'Blockchain', 'Artificial Intelligence', 'Mobile Application'];
   const statuses = ['All', 'Recruiting', 'Active', 'Completed', 'Archived'];
@@ -168,93 +184,30 @@ export const ProjectHubModule: React.FC<ProjectHubProps> = ({
     setShowManageModal(true);
     setManageApplications([]);
     try {
-      const res = await api.get(`/projects/${projId}/applications`);
-      if (Array.isArray(res) && res.length > 0) {
-        setManageApplications(res);
-      } else {
-        setManageApplications([
-          {
-            id: `app_demo_${Date.now()}`,
-            projectId: projId,
-            applicantId: 'demo_user_1',
-            remark: 'Em mong muốn tham gia đề tài để cùng nhóm phát triển tính năng và hoàn thành xuất sắc đồ án.',
-            status: 'Pending',
-            createdAt: new Date().toISOString(),
-            applicant: {
-              id: 'demo_user_1',
-              fullName: 'Nguyễn Văn Minh',
-              avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-              studentId: '2021601999',
-              faculty: 'CNTT',
-              major: 'Kỹ thuật phần mềm',
-              reputationScore: 380,
-              biography: 'Đam mê nghiên cứu khoa học và phát triển phần mềm.',
-              skills: [{ name: 'React', level: 85 }, { name: 'NodeJS', level: 80 }],
-              matchScore: 94,
-            }
-          }
-        ]);
-      }
+      const res = await api.get<any[]>(`/projects/${projId}/applications`);
+      setManageApplications(Array.isArray(res) ? res : []);
     } catch (err: any) {
-      setManageApplications([
-        {
-          id: `app_demo_${Date.now()}`,
-          projectId: projId,
-          applicantId: 'demo_user_1',
-          remark: 'Em mong muốn tham gia đề tài để cùng nhóm phát triển tính năng và hoàn thành xuất sắc đồ án.',
-          status: 'Pending',
-          createdAt: new Date().toISOString(),
-          applicant: {
-            id: 'demo_user_1',
-            fullName: 'Nguyễn Văn Minh',
-            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-            studentId: '2021601999',
-            faculty: 'CNTT',
-            major: 'Kỹ thuật phần mềm',
-            reputationScore: 380,
-            biography: 'Đam mê nghiên cứu khoa học và phát triển phần mềm.',
-            skills: [{ name: 'React', level: 85 }, { name: 'NodeJS', level: 80 }],
-            matchScore: 94,
-          }
-        }
-      ]);
+      addToast(err.message || 'Không thể tải danh sách đơn ứng tuyển.', 'error');
+      setManageApplications([]);
     }
   };
+
 
   const handleApproveApplication = async (appId: string, action: 'approve' | 'reject') => {
     try {
       await api.put(`/projects/${manageProjId}/applications/${appId}`, { action });
       addToast(action === 'approve' ? 'Đã duyệt thành viên vào đề tài!' : 'Đã từ chối đơn', 'success');
-      setManageApplications(prev => prev.map(a => a.id === appId ? { ...a, status: action === 'approve' ? 'Approved' : 'Rejected' } : a));
-      
-      const app = manageApplications.find(a => a.id === appId);
-      if (action === 'approve' && app) {
-        const targetProj = projects.find(p => p.id === manageProjId);
-        if (targetProj) {
-          const updatedMembers = Array.from(new Set([...(targetProj.members || []), app.applicant.fullName]));
-          await updateProject(manageProjId, { members: updatedMembers });
-        }
-      } else if (action === 'reject' && app) {
-        const targetProj = projects.find(p => p.id === manageProjId);
-        if (targetProj && targetProj.members) {
-          await updateProject(manageProjId, { members: targetProj.members.filter(m => m !== app.applicant.fullName) });
-        }
+      // Refresh the applications list from server to reflect true state
+      if (manageProjId) {
+        const updated = await api.get<any[]>(`/projects/${manageProjId}/applications`);
+        setManageApplications(Array.isArray(updated) ? updated : []);
       }
       fetchProjects();
     } catch (err: any) {
-      // Fallback for demo mode
-      addToast(action === 'approve' ? 'Đã duyệt thành viên vào đề tài!' : 'Đã từ chối đơn', 'success');
-      setManageApplications(prev => prev.map(a => a.id === appId ? { ...a, status: action === 'approve' ? 'Approved' : 'Rejected' } : a));
-      const app = manageApplications.find(a => a.id === appId);
-      if (action === 'approve' && app) {
-        const targetProj = projects.find(p => p.id === manageProjId);
-        if (targetProj) {
-          const updatedMembers = Array.from(new Set([...(targetProj.members || []), app.applicant.fullName]));
-          updateProject(manageProjId, { members: updatedMembers });
-        }
-      }
+      addToast(err.message || 'Xét đơn thất bại.', 'error');
     }
   };
+
 
   const filteredProjects = projects.filter(p => {
     if (p.visibility === 'Private') {
@@ -445,8 +398,18 @@ export const ProjectHubModule: React.FC<ProjectHubProps> = ({
                 <div className="flex justify-between items-center text-[11px] text-slate-400 font-mono">
                   <div className="flex items-center gap-1">
                     <Users className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Target: {p.teamSize}</span>
+                    <span>
+                      {(p.members?.length ?? 1)}/{p.teamSize}
+                      {p.status === 'Recruiting' && (
+                        <span className={`ml-1 ${
+                          (p.members?.length ?? 1) >= p.teamSize ? 'text-red-400' : 'text-emerald-400'
+                        }`}>
+                          {(p.members?.length ?? 1) >= p.teamSize ? '(Đủ)' : `(Còn ${p.teamSize - (p.members?.length ?? 1)} chỗ)`}
+                        </span>
+                      )}
+                    </span>
                   </div>
+
                   <div className="flex items-center gap-1">
                     <Calendar className="w-3.5 h-3.5 text-slate-500" />
                     <span>Due: {p.deadline}</span>
@@ -458,9 +421,14 @@ export const ProjectHubModule: React.FC<ProjectHubProps> = ({
                     {p.leaderId === user?.id ? (
                       <button
                         onClick={() => openManageApplications(p.id)}
-                        className="w-full py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                        className="w-full py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold rounded-xl transition-all cursor-pointer relative"
                       >
                         {lang === 'en' ? 'Manage Applications' : 'Quản lý đơn xin vào'}
+                        {(pendingAppCounts[p.id] ?? 0) > 0 && (
+                          <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-amber-500 text-black text-[9px] font-black rounded-full animate-pulse">
+                            {pendingAppCounts[p.id]}
+                          </span>
+                        )}
                       </button>
                     ) : p.myApplication || applyStates[p.id] === 'done' ? (
                       <div className="w-full text-center py-2 bg-emerald-500/10 text-emerald-400 text-xs rounded-xl font-bold flex items-center justify-center gap-2">
@@ -668,9 +636,21 @@ export const ProjectHubModule: React.FC<ProjectHubProps> = ({
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in font-sans">
           <div className="w-full max-w-2xl bg-[#111111] border border-white/10 rounded-[28px] p-6 space-y-4 max-h-[80vh] flex flex-col">
             <div className="flex justify-between items-center pb-2 border-b border-white/5">
-              <h3 className="text-lg font-black text-white font-display">
-                {lang === 'en' ? 'Manage Applications' : 'Quản lý đơn xin gia nhập'}
-              </h3>
+              <div>
+                <h3 className="text-lg font-black text-white font-display">
+                  {lang === 'en' ? 'Manage Applications' : 'Quản lý đơn xin gia nhập'}
+                </h3>
+                {manageProjId && (
+                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                    {projects.find(p => p.id === manageProjId)?.name}
+                    {manageApplications.filter(a => a.status === 'Pending').length > 0 && (
+                      <span className="ml-2 text-amber-400 font-bold">
+                        · {manageApplications.filter(a => a.status === 'Pending').length} chờ duyệt
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
               <button onClick={() => setShowManageModal(false)} className="p-2 text-slate-400 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>

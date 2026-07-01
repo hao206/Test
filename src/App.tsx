@@ -59,7 +59,16 @@ const Layout: React.FC = () => {
   const logout = useAuthStore((s) => s.logout);
 
   // Notifications Store
-  const { notifications } = useNotificationStore();
+  const { notifications, fetchNotifications } = useNotificationStore();
+
+  // Poll server notifications every 15s so leaders see apply notifications from other accounts
+  useEffect(() => {
+    if (!user || user.role === 'Guest') return;
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 15000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
+
 
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const addToast = useToastStore((s) => s.addToast);

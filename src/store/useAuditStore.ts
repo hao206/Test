@@ -6,14 +6,14 @@ import api from '../lib/api';
 interface AuditState {
   auditLogs: AuditLog[];
   fetchAuditLogs: () => Promise<void>;
-  addLog: (action: string, moduleName: string, userName: string) => Promise<void>;
+  addLog: (action: string, moduleName: string, userName: string) => void;
   clearLogs: () => Promise<void>;
   setAuditLogs: (logs: AuditLog[]) => void;
 }
 
 export const useAuditStore = create<AuditState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       auditLogs: [],
 
       fetchAuditLogs: async () => {
@@ -21,18 +21,13 @@ export const useAuditStore = create<AuditState>()(
           const logs = await api.get<AuditLog[]>('/admin/audit-logs');
           set({ auditLogs: logs });
         } catch (err) {
-          console.error('Failed to fetch audit logs', err);
+          // 403 is expected for non-admin users — silently ignore
         }
       },
 
-      addLog: async (action, moduleName, userName) => {
-        try {
-          await api.post('/admin/audit-logs', { action, module: moduleName, userName });
-          // Optionally refetch logs, but usually they just rely on the API now
-          get().fetchAuditLogs();
-        } catch (err) {
-          console.error('Failed to add audit log', err);
-        }
+      // Fire-and-forget: push audit log to server, never blocks the UI
+      addLog: (action, moduleName, userName) => {
+        api.post('/admin/audit-logs', { action, module: moduleName, userName }).catch(() => {});
       },
 
       clearLogs: async () => {
