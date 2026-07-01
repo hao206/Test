@@ -251,21 +251,30 @@ export const AdminSystemAuditModule: React.FC<AdminSystemAuditProps> = ({ t, acc
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {adminTabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-[10px] font-black uppercase transition ${
-              activeTab === tab.id ? 'border-transparent text-[#0A0A0A]' : 'border-white/5 bg-[#111111] text-slate-500 hover:text-white'
-            }`}
-            style={activeTab === tab.id ? { backgroundColor: accentColor } : {}}
-          >
-            <tab.icon className="h-3.5 w-3.5" />
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex overflow-x-auto gap-1 pb-1 scrollbar-none">
+        {adminTabs.map((tab) => {
+          const pendingResourceCount = tab.id === 'resources' ? resources.filter(r => (r.reviewStatus || 'Approved') === 'Pending').length : 0;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2.5 text-[10px] font-bold uppercase tracking-wider transition cursor-pointer relative ${
+                activeTab === tab.id
+                  ? 'text-black shadow-lg'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-white'
+              }`}
+              style={activeTab === tab.id ? { backgroundColor: accentColor } : {}}
+            >
+              <tab.icon className="h-3.5 w-3.5" />
+              {tab.label}
+              {pendingResourceCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 flex items-center justify-center bg-amber-500 text-black text-[8px] font-black rounded-full animate-pulse">
+                  {pendingResourceCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {activeTab === 'dashboard' && (
@@ -380,26 +389,112 @@ export const AdminSystemAuditModule: React.FC<AdminSystemAuditProps> = ({ t, acc
         </ListPanel>
       )}
 
-      {activeTab === 'resources' && (
-        <ListPanel title="Resource Management">
-          {resources.map((resource) => (
-            <div key={resource.id} className="rounded-xl border border-white/5 bg-[#0A0A0A] p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-bold text-white">{resource.title}</h3>
-                <p className="text-[10px] text-slate-500">{resource.category} - {resource.downloads} downloads - shared by {resource.sharedBy}</p>
+      {activeTab === 'resources' && (() => {
+        const pendingResources = resources.filter(r => (r.reviewStatus || 'Approved') === 'Pending');
+        const approvedResources = resources.filter(r => (r.reviewStatus || 'Approved') === 'Approved');
+        const rejectedResources = resources.filter(r => r.reviewStatus === 'Rejected');
+
+        const ResourceRow: React.FC<{ resource: Resource; highlight?: 'pending' | 'approved' | 'rejected' }> = ({ resource, highlight }) => (
+          <div className={`rounded-xl border p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3 transition ${
+            highlight === 'pending' ? 'border-amber-500/40 bg-amber-500/5' :
+            highlight === 'rejected' ? 'border-red-500/20 bg-red-500/5 opacity-60' :
+            'border-white/5 bg-[#0A0A0A]'
+          }`}>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                highlight === 'pending' ? 'bg-amber-500/15 text-amber-400' :
+                highlight === 'rejected' ? 'bg-red-500/15 text-red-400' :
+                'bg-emerald-500/15 text-emerald-400'
+              }`}>
+                <FileText className="w-4 h-4" />
               </div>
-              <div className="flex flex-wrap gap-2">
-                <select value={resource.category} onChange={(e) => updateResourceAdminState(resource.id, { category: e.target.value as Resource['category'] })} className="rounded-lg border border-white/5 bg-[#161616] px-2 py-2 text-[10px] text-white">
-                  {resourceCategories.map((category) => <option key={category}>{category}</option>)}
-                </select>
-                <AdminButton tone="success" onClick={() => { updateResourceAdminState(resource.id, { reviewStatus: 'Approved' }); logAdminAction(`Approved resource ${resource.id}`, 'Resource Management'); }}>Approve</AdminButton>
-                <AdminButton tone="danger" onClick={() => { updateResourceAdminState(resource.id, { reviewStatus: 'Rejected' }); logAdminAction(`Rejected resource ${resource.id}`, 'Resource Management'); }}>Reject</AdminButton>
-                <AdminButton tone="danger" onClick={() => { deleteResource(resource.id); logAdminAction(`Deleted resource ${resource.id}`, 'Resource Management'); }}><Trash2 className="h-3 w-3" /> Delete</AdminButton>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-sm font-bold text-white truncate">{resource.title}</h3>
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
+                    highlight === 'pending' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
+                    highlight === 'rejected' ? 'bg-red-500/20 text-red-300 border-red-500/30' :
+                    'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                  }`}>
+                    {highlight === 'pending' ? '⏳ Chờ duyệt' : highlight === 'rejected' ? '✕ Từ chối' : '✓ Đã duyệt'}
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  {resource.category} · {resource.size} · Tải lên bởi <span className="text-white font-medium">{resource.sharedBy}</span> · {resource.downloads} lượt tải
+                </p>
               </div>
             </div>
-          ))}
-        </ListPanel>
-      )}
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <select
+                value={resource.category}
+                onChange={(e) => updateResourceAdminState(resource.id, { category: e.target.value as Resource['category'] })}
+                className="rounded-lg border border-white/5 bg-[#161616] px-2 py-2 text-[10px] text-white"
+              >
+                {resourceCategories.map((category) => <option key={category}>{category}</option>)}
+              </select>
+              {resource.reviewStatus !== 'Approved' && (
+                <AdminButton tone="success" onClick={() => {
+                  updateResourceAdminState(resource.id, { reviewStatus: 'Approved' });
+                  logAdminAction(`Approved resource "${resource.title}"`, 'Resource Management');
+                }}>
+                  <Check className="h-3 w-3" /> Duyệt
+                </AdminButton>
+              )}
+              {resource.reviewStatus !== 'Rejected' && (
+                <AdminButton tone="danger" onClick={() => {
+                  updateResourceAdminState(resource.id, { reviewStatus: 'Rejected' });
+                  logAdminAction(`Rejected resource "${resource.title}"`, 'Resource Management');
+                }}>
+                  <X className="h-3 w-3" /> Từ chối
+                </AdminButton>
+              )}
+              <AdminButton tone="danger" onClick={() => {
+                deleteResource(resource.id);
+                logAdminAction(`Deleted resource "${resource.title}"`, 'Resource Management');
+              }}>
+                <Trash2 className="h-3 w-3" /> Xóa
+              </AdminButton>
+            </div>
+          </div>
+        );
+
+        return (
+          <div className="space-y-6">
+            {/* Pending Section — shown prominently first */}
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <h3 className="text-xs font-black text-amber-400 uppercase tracking-wider">
+                  Chờ kiểm duyệt ({pendingResources.length})
+                </h3>
+              </div>
+              {pendingResources.length === 0 ? (
+                <p className="text-[10px] text-slate-500 italic py-2">Không có tài liệu nào đang chờ duyệt.</p>
+              ) : (
+                <div className="space-y-2">
+                  {pendingResources.map(r => <ResourceRow key={r.id} resource={r} highlight="pending" />)}
+                </div>
+              )}
+            </div>
+
+            {/* All Other Resources */}
+            <ListPanel title={`Tất cả tài liệu đã duyệt (${approvedResources.length})`}>
+              {approvedResources.length === 0 ? (
+                <p className="text-[10px] text-slate-500 italic">Chưa có tài liệu nào được duyệt.</p>
+              ) : (
+                approvedResources.map(r => <ResourceRow key={r.id} resource={r} highlight="approved" />)
+              )}
+            </ListPanel>
+
+            {rejectedResources.length > 0 && (
+              <ListPanel title={`Đã từ chối (${rejectedResources.length})`}>
+                {rejectedResources.map(r => <ResourceRow key={r.id} resource={r} highlight="rejected" />)}
+              </ListPanel>
+            )}
+          </div>
+        );
+      })()}
+
 
       {activeTab === 'notifications' && (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">

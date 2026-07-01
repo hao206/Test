@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useResourceStore } from '../store/useResourceStore';
+import { useResourceStore, getResourceFileLink } from '../store/useResourceStore';
 import { useUIStore } from '../store/useUIStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useToastStore } from '../store/useToastStore';
@@ -63,9 +63,12 @@ export const ResourceModule: React.FC = () => {
     const ext = getExtension(res);
     const element = document.createElement("a");
 
+    // Resolve actual file link: check in-memory cache first, then persisted link
+    const resolvedLink = getResourceFileLink(res.id, res.link);
+
     // If real file uploaded or valid link exists
-    if (res.link && res.link !== '#' && (res.link.startsWith('data:') || res.link.startsWith('blob:') || res.link.startsWith('http'))) {
-      element.href = res.link;
+    if (resolvedLink && resolvedLink !== '#' && (resolvedLink.startsWith('data:') || resolvedLink.startsWith('blob:') || resolvedLink.startsWith('http'))) {
+      element.href = resolvedLink;
       element.download = `${res.title}${ext}`;
       document.body.appendChild(element);
       element.click();
